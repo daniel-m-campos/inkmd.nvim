@@ -73,8 +73,8 @@ def greet(name: str) -> None:
     print(f"hello {name}")
 ```
 
-Mermaid diagrams render as pictures. Put the cursor in one to edit its source with
-a live preview below:
+Mermaid diagrams render as pictures. Put the cursor in one to edit its source
+with a live preview below:
 
 ```mermaid
 flowchart LR
