@@ -8,6 +8,9 @@ M.defaults = {
   debounce = 60,
   -- Show the block under the cursor as raw markdown while everything else stays rendered.
   hybrid = true,
+  -- Redraw paragraph rows that hide text (link URLs, markup) and would wrap, word-wrapped
+  -- by their rendered width: Neovim wraps concealed text as if it were visible (#14409).
+  reflow = true,
   win_options = {
     conceallevel = 3,
     concealcursor = '',

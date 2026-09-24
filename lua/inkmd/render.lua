@@ -12,6 +12,7 @@ local list = require('inkmd.handlers.list')
 local inline = require('inkmd.handlers.inline')
 local misc = require('inkmd.handlers.misc')
 local quote = require('inkmd.handlers.quote')
+local reflow = require('inkmd.reflow')
 local tbl = require('inkmd.handlers.table')
 
 local M = {}
@@ -20,8 +21,9 @@ local block_handlers = {
   -- Record leaf spans up front so inline marks find their block without a tree walk.
   leaf = function(ctx, node)
     local ls, le = ts.row_span(node)
+    local _, col = node:range()
     for row = ls, le - 1 do
-      ctx.leaves[row] = ctx.leaves[row] or { ls, le }
+      ctx.leaves[row] = ctx.leaves[row] or { ls, le, node:type(), col }
     end
   end,
   heading = heading,
@@ -117,6 +119,9 @@ local function emit(buf, st, parser, s, e, avail, tick)
   end
 
   ctx:run_deferred()
+  if cfg.reflow then
+    reflow.pass(ctx, s, e)
+  end
   marks.apply(buf, ctx.marks)
   st.marks, st.tick, st.range, st.avail = ctx.marks, tick, { s, e }, avail
   st.raw = nil

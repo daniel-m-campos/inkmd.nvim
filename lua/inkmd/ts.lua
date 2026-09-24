@@ -161,7 +161,8 @@ function M.row_span(node)
   return sr, er + 1
 end
 
---- Rows [start, end) of the leaf block covering `row`, or nil (blank lines, containers only).
+--- Rows [start, end) of the leaf block covering `row` and the block's node, or nil (blank
+--- lines, containers only).
 ---@param buf integer
 ---@param row integer 0-based
 ---@return integer?, integer?
@@ -184,11 +185,11 @@ function M.leaf_span(buf, row)
         local s, e = M.row_span(child)
         if s <= row and row < e then
           if M.leaf_blocks[child:type()] then
-            return s, e
+            return s, e, child
           end
-          local fs, fe = search(child)
+          local fs, fe, fnode = search(child)
           if fs then
-            return fs, fe
+            return fs, fe, fnode
           end
         end
       end
@@ -202,7 +203,7 @@ function M.leaf_span(buf, row)
     if M.leaf_blocks[t] then
       local s, e = M.row_span(node)
       if s <= row and row < e then
-        return s, e
+        return s, e, node
       end
     elseif t == 'section' or t == 'document' then
       break

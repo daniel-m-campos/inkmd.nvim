@@ -151,3 +151,26 @@ diagrams, the live preview, the error lines and the PNG/SVG images all work.
   `WinScrolled`/`WinResized`, which re-render. Before this, some screen goldens captured a
   stale grid; `parity_top` now shows the real #14409 wrapping of lines with long hidden
   URLs.
+
+## M5: reflow (a workaround for #14409)
+
+- **Which rows:** paragraph rows that hide text and that Neovim would wrap (raw width plus
+  inline virtual text > avail) are hidden with `conceal_lines`. They are redrawn in
+  `virt_lines` word-wrapped by their rendered width (`text.atoms` + `text.wrap`).
+  - Only when every window showing the buffer wraps.
+  - Runs of consecutive rows hang above the next visible row, created `first` so they come
+    before other lines there: virtual lines above one row draw in creation order.
+- **Prefixes:** the prefix before the paragraph text (bullet, checkbox, quote markers) is
+  kept on the first line. Wrapped lines get a hanging prefix: quote-bar overlays are kept
+  and everything else becomes spaces.
+  - `text.atoms` understands overlays: they hide the cells they cover.
+- **Leaf cache:** `ts.leaf_span` returns the node, so `ctx:leaf()` caches the leaf type and
+  start column too. The quote handler fills the cache before the paragraph's own capture.
+- **Cost:** about 0.15 ms per reflowed row.
+  - `text.atoms` uses a three-pattern emphasis query instead of the bundled
+    `markdown_inline` highlights query (large and predicate-heavy, about 0.2 ms a row). Our
+    marks already style code and links.
+  - `text.atoms` works in segments between span/conceal/insert boundaries, and `text.wrap`
+    returns early when the row fits.
+- **Benchmark:** the document now has a long-link line per section. Render is about
+  3.1 ms at p50 and 6 ms at p95 (GC); edit is about 3.5 ms at p50.

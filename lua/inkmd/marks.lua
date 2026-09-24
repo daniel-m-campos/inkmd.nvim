@@ -21,7 +21,8 @@ M.ns = vim.api.nvim_create_namespace('inkmd')
 ---@field deferred fun(ctx: inkmd.Ctx)[] run after every handler (see `defer`)
 ---@field lines table<integer, string> line cache
 ---@field by_row table<integer, inkmd.Mark[]> marks by row
----@field leaves table<integer, {[1]: integer, [2]: integer}> leaf block span by row
+---@field leaves table<integer, {[1]: integer, [2]: integer, [3]: string?, [4]: integer?}> leaf span, type and start column by row
+---@field hidden_rows table<integer, true> rows hidden with conceal_lines
 local Ctx = {}
 Ctx.__index = Ctx
 
@@ -30,7 +31,7 @@ Ctx.__index = Ctx
 ---@return inkmd.Ctx
 function M.new(buf, avail)
   return setmetatable(
-    { buf = buf, avail = avail, marks = {}, by_row = {}, leaves = {}, span = { 0, 0 }, deferred = {}, lines = {} },
+    { buf = buf, avail = avail, marks = {}, by_row = {}, leaves = {}, hidden_rows = {}, span = { 0, 0 }, deferred = {}, lines = {} },
     Ctx
   )
 end
@@ -50,8 +51,8 @@ end
 function Ctx:leaf(row)
   local span = self.leaves[row]
   if not span then
-    local s, e = require('inkmd.ts').leaf_span(self.buf, row)
-    span = s and { s, e } or { row, row + 1 }
+    local s, e, node = require('inkmd.ts').leaf_span(self.buf, row)
+    span = s and { s, e, node:type(), select(2, node:range()) } or { row, row + 1 }
     self.leaves[row] = span
   end
   return span[1], span[2]
@@ -105,12 +106,18 @@ end
 ---@param col integer
 ---@param opts vim.api.keyset.set_extmark
 ---@param keep? boolean
-function Ctx:add(row, col, opts, keep)
+---@param first? boolean apply before all other marks (virtual lines above one row are drawn
+---  in the order their marks were created)
+function Ctx:add(row, col, opts, keep, first)
   opts.strict = false
   opts.invalidate = true
   opts.undo_restore = false
   local mark = { row = row, col = col, opts = opts, span = self.span, keep = keep }
-  self.marks[#self.marks + 1] = mark
+  if first then
+    table.insert(self.marks, 1, mark)
+  else
+    self.marks[#self.marks + 1] = mark
+  end
   local list = self.by_row[row]
   if not list then
     list = {}
@@ -147,13 +154,16 @@ end
 
 --- Virtual lines below `row` (or above it).
 ---@param lines [string, string|string[]][][]
-function Ctx:virt_lines(row, lines, above, keep)
-  self:add(row, 0, { virt_lines = lines, virt_lines_above = above or nil }, keep)
+function Ctx:virt_lines(row, lines, above, keep, first)
+  self:add(row, 0, { virt_lines = lines, virt_lines_above = above or nil }, keep, first)
 end
 
 --- Hide rows [s, e) entirely. Virtual lines attached to hidden rows are not drawn.
 function Ctx:conceal_lines(s, e)
   self:add(s, 0, { end_row = e - 1, conceal_lines = '' })
+  for row = s, e - 1 do
+    self.hidden_rows[row] = true
+  end
 end
 
 --- Highlight the whole screen line of `row`.

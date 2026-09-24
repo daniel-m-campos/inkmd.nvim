@@ -6,89 +6,150 @@ local ts = require('inkmd.ts')
 
 local M = {}
 
----@alias inkmd.Atom {text: string, hl: string[]}
+---@alias inkmd.Atom {text: string, hl: string[], overlay?: boolean}
 
 local hl_query
 
---- Treesitter highlight groups over [a, b) of `row`, from the markdown_inline highlights
---- query, as a list of {start, end, group}.
-local function ts_spans(ctx, row, a, b)
-  local parser = ts.parser(ctx.buf)
-  if not parser then
-    return {}
-  end
-  if hl_query == nil then
-    hl_query = vim.treesitter.query.get('markdown_inline', 'highlights') or false
-  end
-  if not hl_query then
-    return {}
+--- Treesitter emphasis groups on `row` (italic, strong, strikethrough), as a
+--- list of {start, end, group}. Cached per render: rows are often split into several
+--- ranges (a list prefix and the text).
+---@param ctx inkmd.Ctx
+local function row_spans(ctx, row)
+  ctx.ts_spans = ctx.ts_spans or {}
+  local cached = ctx.ts_spans[row]
+  if cached then
+    return cached
   end
   local spans = {}
+  ctx.ts_spans[row] = spans
+  local parser = ts.parser(ctx.buf)
+  -- A small query rather than the bundled highlights query (large, predicate-heavy, ~0.2 ms
+  -- a row): our own marks already style code, links and ==highlights==.
+  hl_query = hl_query
+    or vim.treesitter.query.parse(
+      'markdown_inline',
+      '(emphasis) @markup.italic (strong_emphasis) @markup.strong (strikethrough) @markup.strikethrough'
+    )
+  if not parser then
+    return spans
+  end
   for _, tree in ipairs(ts.inline_trees(parser, row, row)) do
-    local root = tree:root()
-    for id, node in hl_query:iter_captures(root, ctx.buf, row, row + 1) do
+    for id, node in hl_query:iter_captures(tree:root(), ctx.buf, row, row + 1) do
       local sr, sc, er, ec = node:range()
-      local s = sr < row and 0 or sc
-      local e = er > row and math.huge or ec
-      if s < b and e > a then
-        spans[#spans + 1] = { math.max(s, a), math.min(e, b), '@' .. hl_query.captures[id] .. '.markdown_inline' }
-      end
+      spans[#spans + 1] = { sr < row and 0 or sc, er > row and math.huge or ec, '@' .. hl_query.captures[id] .. '.markdown_inline' }
     end
   end
   return spans
+end
+
+--- Treesitter spans clipped to [a, b).
+local function ts_spans(ctx, row, a, b)
+  local out = {}
+  for _, span in ipairs(row_spans(ctx, row)) do
+    if span[1] < b and span[2] > a then
+      out[#out + 1] = { math.max(span[1], a), math.min(span[2], b), span[3] }
+    end
+  end
+  return out
 end
 
 --- Styled chunks for [a, b) of `row` as rendered. Call after the handlers that style the row
 --- have run (from a deferred function).
 ---@param ctx inkmd.Ctx
 ---@return inkmd.Atom[]
-function M.atoms(ctx, row, a, b)
+---@param plain? boolean skip treesitter colours (ranges without inline markup)
+function M.atoms(ctx, row, a, b, plain)
   local line = ctx:line(row)
-  local hidden, inserts, spans = {}, {}, ts_spans(ctx, row, a, b)
+  local spans = plain and {} or ts_spans(ctx, row, a, b)
+  local hidden = {} ---@type {[1]: integer, [2]: integer}[]
+  local inserts = {} ---@type table<integer, inkmd.Atom[]>
+  -- Segment boundaries: wherever hiding, highlighting or inserted text starts or stops.
+  local points = { [a] = true, [b] = true }
+  local function point(col)
+    if col > a and col < b then
+      points[col] = true
+    end
+  end
+  local function insert(col, chunks, overlay)
+    inserts[col] = inserts[col] or {}
+    for _, chunk in ipairs(chunks) do
+      local group = chunk[2]
+      table.insert(inserts[col], { text = chunk[1], hl = type(group) == 'table' and group or { group }, overlay = overlay })
+    end
+    point(col)
+  end
+
   for _, mark in ipairs(ctx.by_row[row] or {}) do
     local o = mark.opts
     if o.conceal and o.end_col and not o.end_row then
-      for i = math.max(mark.col, a), math.min(o.end_col, b) - 1 do
-        hidden[i] = true
+      if mark.col < b and o.end_col > a then
+        hidden[#hidden + 1] = { mark.col, o.end_col }
+        point(mark.col)
+        point(o.end_col)
       end
     elseif o.virt_text_pos == 'inline' and mark.col >= a and mark.col < b then
-      inserts[mark.col] = inserts[mark.col] or {}
+      insert(mark.col, o.virt_text)
+    elseif o.virt_text_pos == 'overlay' and mark.col >= a and mark.col < b then
+      -- Drawn over the text: hide the characters it covers and show it instead.
+      local w = 0
       for _, chunk in ipairs(o.virt_text) do
-        local group = chunk[2]
-        table.insert(inserts[mark.col], { text = chunk[1], hl = type(group) == 'table' and group or { group } })
+        w = w + vim.api.nvim_strwidth(chunk[1])
       end
+      local col, covered = mark.col, 0
+      while covered < w and col < b do
+        local len = vim.str_utf_end(line, col + 1) + 1
+        covered = covered + vim.api.nvim_strwidth(line:sub(col + 1, col + len))
+        col = col + len
+      end
+      hidden[#hidden + 1] = { mark.col, col }
+      point(col)
+      insert(mark.col, o.virt_text, true)
     elseif o.hl_group and o.end_col and mark.col < b and o.end_col > a then
       spans[#spans + 1] = { math.max(mark.col, a), math.min(o.end_col, b), o.hl_group }
     end
   end
-
-  local atoms = {}
-  local function push(text, hl)
-    local prev = atoms[#atoms]
-    if prev and vim.deep_equal(prev.hl, hl) then
-      prev.text = prev.text .. text
-    else
-      atoms[#atoms + 1] = { text = text, hl = hl }
-    end
+  for _, span in ipairs(spans) do
+    point(span[1])
+    point(span[2])
   end
 
-  local col = a
-  while col < b do
-    for _, insert in ipairs(inserts[col] or {}) do
-      push(insert.text, insert.hl)
+  local cols = vim.tbl_keys(points)
+  table.sort(cols)
+
+  local atoms = {}
+  local last_key
+  local function push(text, hl, overlay)
+    local key = table.concat(hl, ',')
+    local prev = atoms[#atoms]
+    if prev and not overlay and not prev.overlay and key == last_key then
+      prev.text = prev.text .. text
+    else
+      atoms[#atoms + 1] = { text = text, hl = hl, overlay = overlay }
     end
-    -- One UTF-8 character at a time.
-    local len = vim.str_utf_end(line, col + 1) + 1
-    if not hidden[col] then
+    last_key = key
+  end
+
+  for i = 1, #cols - 1 do
+    local p, q = cols[i], cols[i + 1]
+    for _, atom in ipairs(inserts[p] or {}) do
+      push(atom.text, atom.hl, atom.overlay)
+    end
+    local is_hidden = false
+    for _, h in ipairs(hidden) do
+      if h[1] <= p and p < h[2] then
+        is_hidden = true
+        break
+      end
+    end
+    if not is_hidden then
       local hl = {}
       for _, span in ipairs(spans) do
-        if span[1] <= col and col < span[2] then
+        if span[1] <= p and p < span[2] then
           hl[#hl + 1] = span[3]
         end
       end
-      push(line:sub(col + 1, col + len), hl)
+      push(line:sub(p + 1, q), hl)
     end
-    col = col + len
   end
   return atoms
 end
@@ -182,6 +243,11 @@ end
 ---@return {atoms: inkmd.Atom[], width: integer}[]
 function M.wrap(atoms, width)
   width = math.max(width, 1)
+  -- Common case (e.g. a line with a hidden URL that fits once rendered): one line as is.
+  local total = M.width(atoms)
+  if total <= width then
+    return { { atoms = atoms, width = total } }
+  end
   local lines = {}
   local line = { atoms = {}, width = 0 }
   local function flush()
