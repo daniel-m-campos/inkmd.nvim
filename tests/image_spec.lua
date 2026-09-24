@@ -32,7 +32,8 @@ end
 --- Text of every virtual line in the buffer, in order.
 local function virt_lines(buf)
   local out = {}
-  for _, m in ipairs(h.marks(buf)) do
+  -- All namespaces: a live preview is in the raw block's own (window-scoped) namespace.
+  for _, m in ipairs(vim.api.nvim_buf_get_extmarks(buf, -1, 0, -1, { details = true })) do
     for _, line in ipairs(m[4].virt_lines or {}) do
       local parts = {}
       for _, chunk in ipairs(line) do

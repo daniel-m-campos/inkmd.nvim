@@ -128,8 +128,9 @@ Call `require('inkmd').refresh(buf)` when a drawing finishes asynchronously.
   table on line 1 has no top border.
 - **Images are placed per size.** A diagram shown in two windows uses the narrower one's
   size.
-- **Marks are per buffer.** Several windows showing one buffer share the raw block and use
-  the narrowest window's width.
+- **Marks are per buffer.** Several windows showing one buffer use the narrowest window's
+  width. The raw block is per window: only the window you're in shows its cursor's block
+  raw, and the others keep it rendered.
 
 ## Development
 

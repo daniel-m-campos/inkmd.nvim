@@ -4,7 +4,7 @@
 ---@field tick? integer changedtick the marks were built from
 ---@field range? {[1]: integer, [2]: integer} rows covered by the marks
 ---@field avail? integer text width the marks were built for
----@field raw? {[1]: integer, [2]: integer} rows currently shown raw
+---@field raw? {[1]: integer, [2]: integer, win: integer} rows shown raw, and the window
 ---@field timer? uv.uv_timer_t
 ---@field augroup? integer
 

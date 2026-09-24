@@ -58,4 +58,49 @@ describe('hybrid', function()
     require('inkmd.config').options.hybrid = true
     assert(ok, err)
   end)
+
+  describe('with two windows on the buffer', function()
+    --- Row `r` (1-based) of `win` as drawn.
+    local function row(win, r)
+      vim.cmd('redraw!')
+      vim.cmd('redraw!')
+      local pos = vim.fn.win_screenpos(win)
+      local cells = {}
+      for c = pos[2], pos[2] + vim.api.nvim_win_get_width(win) - 1 do
+        cells[#cells + 1] = vim.fn.screenstring(pos[1] + r - 1, c)
+      end
+      return (table.concat(cells):gsub('%s+$', ''))
+    end
+
+    it('shows the block raw only in the current window', function()
+      h.scratch({ '# One', '', 'text', '', '## Two' }, { 1, 0 })
+      local left = vim.api.nvim_get_current_win()
+      vim.cmd('vsplit')
+      local right = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_cursor(right, { 5, 0 })
+      vim.api.nvim_exec_autocmds('CursorMoved', { buffer = 0 })
+      h.eq(row(right, 5), '## Two')
+      h.eq(row(left, 5), '󰲣 Two')
+      -- Only the current window has a raw block.
+      h.eq(row(left, 1), '󰲡 One')
+      h.eq(row(right, 1), '󰲡 One')
+
+      -- Back in the left window: its cursor's block is raw there, nothing is in the right.
+      vim.api.nvim_set_current_win(left)
+      h.eq(row(left, 1), '# One')
+      h.eq(row(left, 5), '󰲣 Two')
+      h.eq(row(right, 5), '󰲣 Two')
+      h.eq(row(right, 1), '󰲡 One')
+    end)
+
+    it('keeps the block rendered in a window opened without focus', function()
+      local buf = h.scratch({ '# One', '', 'text' }, { 1, 0 })
+      local win = vim.api.nvim_open_win(buf, false, { split = 'right' })
+      vim.wait(100, function()
+        return false
+      end)
+      h.eq(row(0, 1), '# One')
+      h.eq(row(win, 1), '󰲡 One')
+    end)
+  end)
 end)

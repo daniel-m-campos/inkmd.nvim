@@ -277,3 +277,27 @@ inkmd (headless, `redraw!` after each step):
   border.
 - A blank line between two headings gets both marks; the lower heading's `▄` is drawn
   last and wins.
+
+## M5: per-window raw blocks
+
+- **Scoping:** extmarks belong to a buffer, but in 0.12 a namespace can be scoped to
+  windows (`nvim__ns_set(ns, {wins})`, experimental). Headless checks show that every
+  decoration kind inkmd uses respects the scope: conceal, inline, overlay, win_col and
+  eol virtual text, `virt_lines` and `conceal_lines`.
+- **Scope-list quirks:**
+  - Setting `wins = {}` unscopes the namespace, so it shows everywhere.
+  - Invalid window ids are an error.
+  - When the scoped windows close, the list empties but the namespace stays scoped, so it
+    shows nowhere.
+- **Design:** each buffer has two scoped namespaces.
+  - `inkmd.rest.<buf>` is scoped to the buffer's other windows. `marks.hide` moves the
+    raw block's marks there. With no other windows they are deleted, as before, because
+    an empty list would unscope the namespace.
+  - `inkmd.raw.<buf>` is scoped to the raw window and holds the raw-only marks (live
+    previews).
+  - `marks.show` moves the marks back to the main namespace.
+- **Which window:** only the current window has a raw block. `WinEnter` moves it to the
+  window entered. Leaving for another buffer's window keeps it raw in the window that was
+  left. `WinNew` rebuilds, so a window opened without focus joins the "rest" scope.
+- **Fallback:** without `nvim__ns_set` it falls back to the old buffer-wide behaviour.
+- **Cost:** hybrid move p95 stays about 0.05 ms.

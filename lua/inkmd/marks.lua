@@ -5,6 +5,28 @@ local M = {}
 
 M.ns = vim.api.nvim_create_namespace('inkmd')
 
+-- Per-window raw blocks: a block that is raw in one window stays rendered in the others.
+-- Extmarks belong to the buffer, but a namespace can be scoped to windows (experimental
+-- in 0.12). A raw block's marks move to a namespace scoped to the buffer's other windows,
+-- and raw-only marks go to one scoped to the raw window.
+M.scoping = vim.api.nvim__ns_set ~= nil
+
+---@type table<integer, {rest: integer, raw: integer}>
+local scoped = {}
+
+---@param buf integer
+local function buf_ns(buf)
+  local nss = scoped[buf]
+  if not nss then
+    nss = {
+      rest = vim.api.nvim_create_namespace('inkmd.rest.' .. buf),
+      raw = vim.api.nvim_create_namespace('inkmd.raw.' .. buf),
+    }
+    scoped[buf] = nss
+  end
+  return nss
+end
+
 ---@class inkmd.Mark
 ---@field row integer
 ---@field col integer
@@ -12,6 +34,8 @@ M.ns = vim.api.nvim_create_namespace('inkmd')
 ---@field span {[1]: integer, [2]: integer} rows [start, end)
 ---@field keep? boolean|'raw' true: shown even when its block is raw; 'raw': shown only then
 ---@field id? integer extmark id once applied
+---@field ns? integer namespace of `id`
+---@field hidden? boolean moved or removed while its block is raw
 
 ---@class inkmd.Ctx
 ---@field buf integer
@@ -171,17 +195,41 @@ function Ctx:line_hl(row, group, keep)
   self:add(row, 0, { line_hl_group = group }, keep)
 end
 
+--- Remove every mark from `buf`.
+function M.clear(buf)
+  vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+  local nss = scoped[buf]
+  if nss then
+    vim.api.nvim_buf_clear_namespace(buf, nss.rest, 0, -1)
+    vim.api.nvim_buf_clear_namespace(buf, nss.raw, 0, -1)
+  end
+end
+
+---@param mark inkmd.Mark
+local function remove(buf, mark)
+  if mark.id then
+    pcall(vim.api.nvim_buf_del_extmark, buf, mark.ns, mark.id)
+    mark.id = nil
+  end
+end
+
+---@param mark inkmd.Mark
+local function place(buf, mark, ns)
+  remove(buf, mark)
+  mark.opts.id = nil
+  local ok, id = pcall(vim.api.nvim_buf_set_extmark, buf, ns, mark.row, mark.col, mark.opts)
+  mark.id, mark.ns = ok and id or nil, ns
+end
+
 ---@param buf integer
 ---@param marks inkmd.Mark[]
 function M.apply(buf, marks)
-  vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+  M.clear(buf)
   for _, mark in ipairs(marks) do
-    mark.opts.id = nil
-    mark.id = nil
+    mark.id, mark.hidden = nil, nil
     -- Raw-only marks appear when their block goes raw (see `hide`).
     if mark.keep ~= 'raw' then
-      local ok, id = pcall(vim.api.nvim_buf_set_extmark, buf, M.ns, mark.row, mark.col, mark.opts)
-      mark.id = ok and id or nil
+      place(buf, mark, M.ns)
     end
   end
 end
@@ -193,16 +241,36 @@ local function intersects(mark, s, e)
   return mark.span[1] < e and s < mark.span[2]
 end
 
---- Show rows [s, e) raw: remove their marks (except `keep` ones) and add their raw-only ones.
-function M.hide(buf, marks, s, e)
+--- Show rows [s, e) raw in window `win` (in every window without scoping): their marks
+--- (except `keep` ones) leave `win`, and their raw-only marks appear there.
+---@param win? integer
+function M.hide(buf, marks, s, e, win)
+  local rest_ns, raw_ns = nil, M.ns
+  if M.scoping and win then
+    local nss = buf_ns(buf)
+    local others = vim.tbl_filter(function(w)
+      return w ~= win
+    end, vim.fn.win_findbuf(buf))
+    vim.api.nvim__ns_set(nss.raw, { wins = { win } })
+    raw_ns = nss.raw
+    -- An empty list would unscope the namespace (shown everywhere): without other windows
+    -- the marks are just removed.
+    if #others > 0 then
+      vim.api.nvim__ns_set(nss.rest, { wins = others })
+      rest_ns = nss.rest
+    end
+  end
   for _, mark in ipairs(marks) do
     if intersects(mark, s, e) then
       if mark.keep == 'raw' then
-        mark.opts.id = nil
-        local ok, id = pcall(vim.api.nvim_buf_set_extmark, buf, M.ns, mark.row, mark.col, mark.opts)
-        mark.id = ok and id or nil
+        place(buf, mark, raw_ns)
       elseif mark.id and not mark.keep then
-        vim.api.nvim_buf_del_extmark(buf, M.ns, mark.id)
+        mark.hidden = true
+        if rest_ns then
+          place(buf, mark, rest_ns)
+        else
+          remove(buf, mark)
+        end
       end
     end
   end
@@ -213,13 +281,10 @@ function M.show(buf, marks, s, e)
   for _, mark in ipairs(marks) do
     if intersects(mark, s, e) then
       if mark.keep == 'raw' then
-        if mark.id then
-          vim.api.nvim_buf_del_extmark(buf, M.ns, mark.id)
-          mark.id = nil
-        end
-      elseif mark.id and not mark.keep then
-        mark.opts.id = mark.id
-        pcall(vim.api.nvim_buf_set_extmark, buf, M.ns, mark.row, mark.col, mark.opts)
+        remove(buf, mark)
+      elseif mark.hidden then
+        mark.hidden = nil
+        place(buf, mark, M.ns)
       end
     end
   end

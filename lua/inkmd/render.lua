@@ -192,7 +192,7 @@ end
 --- Remove all rendering from the buffer (it stays attached).
 function M.clear(buf)
   local st = state.get(buf)
-  vim.api.nvim_buf_clear_namespace(buf, marks.ns, 0, -1)
+  marks.clear(buf)
   if st then
     st.marks, st.tick, st.range, st.raw = {}, nil, nil, nil
   end

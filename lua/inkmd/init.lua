@@ -42,6 +42,18 @@ local function init()
       end
     end,
   })
+  -- A window that opens without focus on a buffer with a raw block has to be added to the
+  -- windows that keep the block rendered.
+  vim.api.nvim_create_autocmd('WinNew', {
+    group = group,
+    callback = vim.schedule_wrap(function()
+      for _, buf in ipairs(state.buffers()) do
+        if state.get(buf).raw then
+          hybrid.update(buf, true)
+        end
+      end
+    end),
+  })
   vim.api.nvim_create_autocmd({ 'WinScrolled', 'WinResized' }, {
     group = group,
     callback = function()
@@ -116,7 +128,7 @@ function M.attach(buf)
   on({ 'TextChanged', 'TextChangedI' }, function()
     schedule(buf)
   end)
-  on({ 'CursorMoved', 'CursorMovedI' }, function()
+  on({ 'CursorMoved', 'CursorMovedI', 'WinEnter' }, function()
     hybrid.update(buf)
   end)
   on('BufWinEnter', function()
