@@ -54,7 +54,7 @@ local function view(buf)
   local s, e, vs, ve, avail
   for _, win in ipairs(vim.fn.win_findbuf(buf)) do
     local info = vim.fn.getwininfo(win)[1]
-    local margin = math.max(20, info.height)
+    local margin = math.max(20, vim.api.nvim_win_get_height(win))
     -- line('w0')/('w$') recompute the view; getwininfo() is only updated by a redraw.
     local top = vim.fn.line('w0', win) - 1
     local bot = vim.fn.line('w$', win)
@@ -62,7 +62,8 @@ local function view(buf)
     ve = ve and math.max(ve, bot) or bot
     s = s and math.min(s, top - margin) or top - margin
     e = e and math.max(e, bot + margin) or bot + margin
-    local width = info.width - info.textoff
+    -- nvim_win_get_width is current; getwininfo().width only updates on redraw.
+    local width = vim.api.nvim_win_get_width(win) - info.textoff
     avail = avail and math.min(avail, width) or width
   end
   if not s then

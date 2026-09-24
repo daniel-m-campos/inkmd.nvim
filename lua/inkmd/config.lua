@@ -99,6 +99,11 @@ M.defaults = {
     middle = { '├', '─', '┼', '┤' },
     bottom = { '└', '─', '┴', '┘' },
     vertical = '│',
+    -- Tables wider than the window (with 'wrap' on) are redrawn fitted to it with wrapped
+    -- cells: 'auto'. 'always' draws every table that way, 'never' keeps them inline.
+    block = 'auto',
+    -- Alternate body row background in block mode.
+    alternate = true,
   },
   -- YAML/TOML frontmatter drawn like a code block with this label.
   frontmatter = {

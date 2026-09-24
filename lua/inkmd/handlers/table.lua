@@ -1,6 +1,8 @@
 -- Pipe tables, inline mode: cells are padded in place so columns line up, pipes become box
 -- lines, the delimiter row becomes a rule and virtual lines add top and bottom borders.
 -- Editing stays natural because every source character keeps its row.
+local hooks = require('inkmd.hooks')
+local text = require('inkmd.text')
 local ts = require('inkmd.ts')
 
 ---@class inkmd.TableRow
@@ -75,6 +77,194 @@ local function border(chars, widths, indent)
   return string.rep(' ', indent) .. chars[1] .. table.concat(parts, chars[3]) .. chars[4]
 end
 
+local function sum(list)
+  local total = 0
+  for _, v in ipairs(list) do
+    total = total + v
+  end
+  return total
+end
+
+--- Column widths that fit `avail`: natural widths if they fit, else each column shrinks
+--- toward its longest word in proportion to how much it can give, else (words must break)
+--- widths proportional to those longest words.
+---@param natural integer[]
+---@param minimum integer[]
+---@param avail integer
+---@return integer[]
+local function fit_columns(natural, minimum, avail)
+  local total, min_total = sum(natural), sum(minimum)
+  if total <= avail then
+    return vim.deepcopy(natural)
+  end
+  local out = {}
+  if min_total <= avail then
+    local extra, want = avail - min_total, total - min_total
+    for i = 1, #natural do
+      out[i] = minimum[i] + math.floor(extra * (natural[i] - minimum[i]) / want)
+    end
+  else
+    for i = 1, #natural do
+      out[i] = math.max(1, math.floor(avail * minimum[i] / min_total))
+    end
+  end
+  -- Hand out what rounding left over, left to right, to columns that can use it.
+  local left = avail - sum(out)
+  local i = 1
+  while left > 0 and i <= #out do
+    if out[i] < natural[i] then
+      out[i] = out[i] + 1
+      left = left - 1
+    else
+      i = i + 1
+    end
+  end
+  return out
+end
+
+--- Whether any window showing the buffer wraps lines (block mode needs it: a too-wide
+--- table in a nowrap window can just be scrolled).
+local function wraps(buf)
+  for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+    if vim.wo[win].wrap then
+      return true
+    end
+  end
+  return false
+end
+
+--- Smallest window height among windows showing the buffer.
+local function win_height(buf)
+  local height = math.huge
+  for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+    height = math.min(height, vim.api.nvim_win_get_height(win))
+  end
+  return height == math.huge and vim.o.lines or height
+end
+
+--- Block mode: hide the source rows and draw the table fitted to the window in virtual
+--- lines, with wrapped cells. Returns false when it doesn't apply (the table is drawn
+--- inline instead).
+---@param ctx inkmd.Ctx
+---@param rows inkmd.TableRow[]
+---@param natural integer[] natural column widths
+---@param aligns string[]
+---@param indent integer
+---@param cfg inkmd.Config
+local function block(ctx, rows, natural, aligns, indent, s, e, cfg)
+  local opts = cfg.table
+  local ncols = #natural
+  local frame = 3 * ncols + 1
+  if opts.block == 'never' or ncols == 0 then
+    return false
+  end
+  local fits = indent + sum(natural) + frame <= ctx.avail
+  if opts.block ~= 'always' and (fits or not wraps(ctx.buf)) then
+    return false
+  end
+  local avail = ctx.avail - indent - frame
+  if avail < ncols then
+    return false
+  end
+
+  -- Styled cell contents and each column's longest word.
+  local minimum = {}
+  for i = 1, ncols do
+    minimum[i] = 1
+  end
+  for _, r in ipairs(rows) do
+    if not r.delimiter then
+      r.atoms = {}
+      for i, c in ipairs(r.content) do
+        if i <= ncols then
+          r.atoms[i] = text.atoms(ctx, r.row, c.a, c.b)
+          minimum[i] = math.max(minimum[i], text.min_width(r.atoms[i]))
+        end
+      end
+    end
+  end
+  -- One very long word shouldn't make every other column break its words: cap each
+  -- column's minimum at a fair share of the width.
+  local share = math.max(math.floor(avail / ncols), 1)
+  for i = 1, ncols do
+    minimum[i] = math.min(minimum[i], share)
+  end
+  local widths = fit_columns(natural, minimum, avail)
+
+  local border_hl = 'InkmdTableBorder'
+  local pad = string.rep(' ', indent)
+  local function rule(chars)
+    return { { pad .. border(chars, widths, 0), border_hl } }
+  end
+  local function hl_list(...)
+    local list = {}
+    for _, group in ipairs({ ... }) do
+      if type(group) == 'table' then
+        vim.list_extend(list, group)
+      elseif group then
+        list[#list + 1] = group
+      end
+    end
+    return #list > 0 and list or nil
+  end
+
+  local lines = { rule(opts.top) }
+  local body = 0
+  for index, r in ipairs(rows) do
+    if r.delimiter then
+      lines[#lines + 1] = rule(opts.middle)
+    else
+      local header = index == 1
+      if not header then
+        body = body + 1
+      end
+      local bg = not header and opts.alternate and body % 2 == 0 and 'InkmdTableRowAlt' or nil
+      local wrapped, height = {}, 1
+      for i = 1, ncols do
+        wrapped[i] = text.wrap(r.atoms[i] or {}, widths[i])
+        height = math.max(height, #wrapped[i])
+      end
+      for l = 1, height do
+        local chunks = { { pad }, { opts.vertical, border_hl } }
+        for i = 1, ncols do
+          local line = wrapped[i][l]
+          local w = line and line.width or 0
+          local space = widths[i] - w
+          local align = aligns[i] or 'left'
+          local left = align == 'right' and space or align == 'center' and math.floor(space / 2) or 0
+          chunks[#chunks + 1] = { string.rep(' ', 1 + left), hl_list(bg) }
+          for _, atom in ipairs(line and line.atoms or {}) do
+            chunks[#chunks + 1] = { atom.text, hl_list(bg, header and 'InkmdTableHead' or nil, atom.hl) }
+          end
+          chunks[#chunks + 1] = { string.rep(' ', space - left + 1), hl_list(bg) }
+          chunks[#chunks + 1] = { opts.vertical, border_hl }
+        end
+        lines[#lines + 1] = chunks
+      end
+    end
+  end
+  -- Virtual lines above a row scroll only as far as the window is tall, so a taller
+  -- drawing is cut short; the source shows in full with the cursor in the table.
+  local max = math.max(win_height(ctx.buf) - 3, 4)
+  if #lines + 1 > max then
+    local hidden = #lines + 1 - (max - 2)
+    lines = vim.list_slice(lines, 1, max - 2)
+    lines[#lines + 1] = {
+      { pad .. string.format('⋯ %d more lines', hidden), 'Comment' },
+    }
+  end
+  lines[#lines + 1] = rule(opts.bottom)
+  hooks.place(ctx, {
+    key = 'table',
+    mode = 'replace',
+    on_raw = 'hide',
+    lines = function()
+      return lines
+    end,
+  }, s, e)
+  return true
+end
+
 ---@param ctx inkmd.Ctx
 ---@param node TSNode pipe_table
 ---@param cfg inkmd.Config
@@ -139,6 +329,10 @@ return function(ctx, node, cfg)
           end
         end
       end
+    end
+
+    if block(ctx, rows, widths, aligns, indent, s, e, cfg) then
+      return
     end
 
     local vertical = { { opts.vertical, 'InkmdTableBorder' } }

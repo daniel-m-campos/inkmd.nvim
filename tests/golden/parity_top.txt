@@ -3,10 +3,13 @@
   tags: [a, b]
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 
-Links: 󰖟 docs and 󰊤 repo, a
-󰈙 local file, 󰖟 https://example.com, 󰇮 me@example.com, 󰖟 ref and 󰖟 r.
+Links: 󰖟 docs and 󰊤 repo
+, a
+󰈙 local file, 󰖟 https://example.com, 󰇮 me@example.com, 󰖟 ref
+ and 󰖟 r.
 
-Wiki: 󰈙 Some Page and 󰈙 alias; footnote¹; marked & © →
+Wiki: 󰈙 Some Page and 󰈙 alias; footnote¹; marked & ©
+ →
 struck 󰋩 diagram  end.
 
 ▋ A quote
@@ -17,5 +20,3 @@ struck 󰋩 diagram  end.
 
 ▋ 󰀪 Custom title
 ▋ Be careful.
-
-────────────────────────────────────────────────────────────────────────────────

@@ -50,6 +50,11 @@ function M.setup()
     set('InkmdCodeBorder', { link = 'NonText' })
     set('InkmdCodeInfo', { link = '@label' })
   end
+  if bg and fg then
+    vim.api.nvim_set_hl(0, 'InkmdTableRowAlt', { bg = blend(fg, bg, 0.04) })
+  else
+    set('InkmdTableRowAlt', { link = 'CursorLine' })
+  end
 
   local warn = get('DiagnosticWarn').fg
   if bg and warn then

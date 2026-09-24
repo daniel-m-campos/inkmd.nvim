@@ -8,6 +8,9 @@ function M.reset()
   vim.cmd('silent! only!')
   vim.cmd('silent! %bwipeout!')
   vim.o.columns = 80
+  vim.wo.wrap = true
+  -- Settle the grid after layout changes from the previous test.
+  vim.cmd('redraw!')
 end
 
 ---@param a any
@@ -49,9 +52,18 @@ function M.scratch(lines, cursor)
   return vim.api.nvim_get_current_buf()
 end
 
+--- Make the current window `width` columns wide. Setting 'columns' doesn't resize the
+--- headless grid's window, so split and resize for real; the current window is the left one.
+function M.narrow(width)
+  vim.cmd('vsplit')
+  vim.cmd('vertical resize ' .. width)
+end
+
 --- Rendered screen rows 1..rows, trailing spaces removed.
 function M.screen(rows, cols)
-  -- Full repaint: a plain :redraw can leave stale rows in the headless grid.
+  -- Full repaint: a plain :redraw can leave stale rows in the headless grid. The first one
+  -- fires WinScrolled/WinResized (which re-render); the second shows the result.
+  vim.cmd('redraw!')
   vim.cmd('redraw!')
   rows = rows or vim.o.lines - 2
   cols = cols or vim.o.columns

@@ -122,3 +122,32 @@ diagrams, the live preview, the error lines and the PNG/SVG images all work.
 - **Tests:** a fake `mmdc` script (`tests/fixtures/fake-mmdc`) writes a fixture PNG, or an
   mmdc-style coloured error when the source contains "error". Tests force
   `backend='kitty'` and capture `kitty.write`.
+
+## M4: tables in block mode
+
+- **When it applies:** a table whose natural width (plus its frame) exceeds the window,
+  in a window with `wrap` on. `table.block` can force `'always'` or `'never'`.
+  - It is placed like a `mode='replace', on_raw='hide'` claim: `conceal_lines` over the
+    source, and the grid as `virt_lines_above` on the next row. With the cursor in the
+    table, the source shows raw.
+- **Rendered text as data:** `text.atoms()` rebuilds a cell as it is displayed.
+  - It drops concealed bytes, inserts inline virtual text such as icons, and applies our
+    `hl_group` marks plus the `markdown_inline` highlights captures.
+  - `text.wrap()` word-wraps those styled atoms. A word that must break starts in the room
+    left on the current line.
+- **Column fitting:**
+  - Natural widths if they fit.
+  - Otherwise each column shrinks toward its longest word, capped at a fair share
+    (avail ÷ columns) so one long word doesn't break every other column. The shrink is
+    proportional to how much each column can give.
+  - Otherwise widths are proportional to those minimums. Leftovers go left to right.
+- **Height:** drawings taller than the window − 3 are cut short with a `⋯ N more lines`
+  footer. `virt_lines_above` only scrolls through about one window height.
+- **Window sizes:** `nvim_win_get_width()`/`get_height()` replace `getwininfo().width`,
+  which is stale until the next redraw.
+  - Headless: setting `columns` doesn't resize the grid's window. Tests narrow a window
+    with `:vsplit` plus `:vertical resize` (`h.narrow`).
+- **Headless screen reads need two `redraw!`s.** The first fires
+  `WinScrolled`/`WinResized`, which re-render. Before this, some screen goldens captured a
+  stale grid; `parity_top` now shows the real #14409 wrapping of lines with long hidden
+  URLs.

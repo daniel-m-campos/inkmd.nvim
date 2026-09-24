@@ -20,6 +20,9 @@ rendered. It is built to replace render-markdown.nvim.
   callouts get an icon, a title and a colour.
 - **Tables:** box-drawn borders, columns aligned using each cell's rendered width, and the
   delimiter row's alignment respected.
+  - A table wider than the window (with `wrap` on) is redrawn fitted to it: columns
+    shrink toward their longest word, cells word-wrap and keep their inline styling, and
+    body rows alternate their background. It reflows when the window is resized.
 - **Other:**
   - Horizontal rules, frontmatter drawn as a box, and `==highlight==`.
   - HTML entities (`&copy;` → ©), and hidden inline HTML comments.
@@ -96,9 +99,12 @@ Call `require('inkmd').refresh(buf)` when a drawing finishes asynchronously.
 
 ## Known limitations
 
-- **Hidden text still counts for wrapping** (Neovim #14409). A long line with a hidden URL
-  can take an extra, blank screen row. Rules, code fences and table rules are drawn over
+- **Hidden text still counts for wrapping** (Neovim #14409). A line with a long hidden URL
+  wraps early, as if the URL were still there. Rules, code fences and table rules are drawn over
   their source instead, so they are not affected.
+- **Tables taller than the window, once fitted,** are cut short with a "⋯ N more lines"
+  footer: virtual lines only scroll as far as the window is tall. The source shows in full
+  with the cursor in the table.
 - **Virtual lines above the first buffer line** only show once the window is scrolled, so a
   table on line 1 has no top border.
 - **Images are placed per size.** A diagram shown in two windows uses the narrower one's

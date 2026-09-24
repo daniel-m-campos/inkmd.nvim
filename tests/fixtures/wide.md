@@ -1,0 +1,9 @@
+Intro line.
+
+| Option | Type | Default | Description |
+|:-------|:----:|--------:|-------------|
+| `max_width` | integer | 100 | Largest drawing in cells; the height is also capped to the window height. |
+| `backend` | string | `'auto'` | Detects the terminal; `'kitty'` forces the graphics protocol and `'text'` disables it. |
+| [link](https://example.com) | **bold** | 3 | A supercalifragilisticexpialidocious word that has to break. |
+
+after

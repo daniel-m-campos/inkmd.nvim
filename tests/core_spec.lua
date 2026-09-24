@@ -39,7 +39,6 @@ describe('core', function()
   end)
 
   it('uses the narrowest window for widths when a buffer is split', function()
-    vim.o.columns = 100
     h.open('basic.md', { 21, 0 })
     vim.cmd('vsplit')
     vim.cmd('vertical resize 30')

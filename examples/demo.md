@@ -105,6 +105,16 @@ flowchart LR
 | Links    | **yes** |     12 |
 | Images   | M3      |      3 |
 
+A table wider than the window is redrawn to fit, with wrapped cells (resize the window
+or `:vsplit` to watch it reflow):
+
+| Option | Type | Default | Description |
+|:-------|:----:|--------:|-------------|
+| `image.max_width` | integer | 100 | Largest drawing in cells; the height is also capped to the window height minus three. |
+| `image.backend` | string | `'auto'` | Detects the terminal; `'kitty'` forces the graphics protocol and `'text'` disables images. |
+| `table.block` | string | `'auto'` | Tables wider than the window are drawn fitted to it; `'always'` or `'never'` override that. |
+| [docs](https://neovim.io) | **bold** | 3 | Supercalifragilisticexpialidocious words break when a column is too narrow for them. |
+
 ## Images
 
 A PNG, drawn below its paragraph:
