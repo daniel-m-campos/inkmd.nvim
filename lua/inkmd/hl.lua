@@ -33,8 +33,11 @@ function M.setup()
     local color = get('@markup.heading.' .. level .. '.markdown').fg
     if bg and color then
       vim.api.nvim_set_hl(0, heading .. 'Bg', { bg = blend(color, bg, 0.15) })
+      -- Half blocks in the background colour extend the heading's band.
+      vim.api.nvim_set_hl(0, heading .. 'Border', { fg = blend(color, bg, 0.15) })
     else
       set(heading .. 'Bg', { link = fallback_bg[level] })
+      set(heading .. 'Border', { fg = get(fallback_bg[level]).bg })
     end
   end
 

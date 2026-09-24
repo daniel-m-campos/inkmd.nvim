@@ -36,4 +36,18 @@ describe('render', function()
     h.eq(screen[4], '    echo hi')
     h.truthy(screen[3]:find('sh', 1, true), 'label shown: ' .. screen[3])
   end)
+
+  it('draws heading borders over blank neighbours only', function()
+    h.narrow(20)
+    h.scratch({ 'text', '', '## Head', 'text right after', '', 'end' }, { 6, 0 })
+    local screen = h.screen(nil, 20)
+    h.eq(screen[2], string.rep('▄', 20))
+    h.eq(screen[4], 'text right after')
+    local config = require('inkmd.config')
+    config.options.heading.border = false
+    require('inkmd').render_now(0)
+    screen = h.screen(nil, 20)
+    config.options.heading.border = true
+    h.eq(screen[2], '')
+  end)
 end)

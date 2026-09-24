@@ -1,5 +1,16 @@
 local ts = require('inkmd.ts')
 
+--- A half-block rule over the blank line `row`, if it is one.
+---@param ctx inkmd.Ctx
+local function border(ctx, row, char, level)
+  if row < 0 or row >= vim.api.nvim_buf_line_count(ctx.buf) or ctx.hidden_rows[row] then
+    return
+  end
+  if ctx:line(row):match('^%s*$') then
+    ctx:win_col(row, 0, { { string.rep(char, ctx.avail), 'InkmdH' .. level .. 'Border' } })
+  end
+end
+
 ---@param ctx inkmd.Ctx
 ---@param node TSNode atx_heading | setext_heading
 ---@param cfg inkmd.Config
@@ -26,6 +37,10 @@ return function(ctx, node, cfg)
     ctx:inline(row, col, { { icon, { 'InkmdH' .. level .. 'Bg', 'InkmdH' .. level } } })
     if opts.background == 'full' then
       ctx:line_hl(row, 'InkmdH' .. level .. 'Bg')
+      if opts.border then
+        border(ctx, s - 1, '▄', level)
+        border(ctx, e, '▀', level)
+      end
     end
     return
   end
@@ -40,6 +55,10 @@ return function(ctx, node, cfg)
   if opts.background == 'full' then
     for row = s, e - 1 do
       ctx:line_hl(row, 'InkmdH' .. level .. 'Bg')
+    end
+    if opts.border then
+      border(ctx, s - 1, '▄', level)
+      border(ctx, e, '▀', level)
     end
   end
   if urow then

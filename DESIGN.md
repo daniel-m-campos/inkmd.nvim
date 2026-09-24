@@ -266,3 +266,14 @@ inkmd (headless, `redraw!` after each step):
   the item's last text row, kept while the item is raw. Neovim adds the one-cell gap
   before it.
 - **Ordered lists:** `1. [ ]` keeps the number and replaces only the box.
+
+## M5: heading borders
+
+- `▄` on the blank line above a heading and `▀` on the blank line below it, in the
+  heading's background colour (`InkmdH<n>Border`), extend its band.
+- They are `virt_text_win_col` overlays on lines that are already blank, so they never
+  add rows. That keeps them clear of #14409 wrapping and of the scroll bug, which needs
+  virtual lines next to a hidden line. When the neighbour isn't blank, that side has no
+  border.
+- A blank line between two headings gets both marks; the lower heading's `▄` is drawn
+  last and wins.

@@ -24,6 +24,9 @@ M.defaults = {
     icons = { '󰲡 ', '󰲣 ', '󰲥 ', '󰲧 ', '󰲩 ', '󰲫 ' },
     -- 'full' paints the whole line, 'none' leaves the background alone.
     background = 'full',
+    -- Half-block rules above and below the heading's background, drawn over the blank
+    -- lines around it (never adding lines). Needs `background = 'full'`.
+    border = true,
   },
   code = {
     left_pad = 2,

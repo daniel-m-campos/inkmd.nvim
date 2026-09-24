@@ -6,8 +6,8 @@ rendered. It is built to replace render-markdown.nvim.
 
 ## What renders
 
-- **Headings:** an icon per level, a tinted full-width background, setext underlines drawn
-  as rules.
+- **Headings:** an icon per level, a tinted full-width background with half-block borders
+  over the blank lines around it (`heading.border`), and setext underlines drawn as rules.
 - **Code blocks:** a language label and icon, a block background with padding, thin
   borders. This also works inside lists and quotes.
 - **Lists:** bullets by nesting level, ordered markers highlighted, and checkboxes as icons
