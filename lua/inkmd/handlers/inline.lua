@@ -24,6 +24,11 @@ end
 ---@param ctx inkmd.Ctx
 ---@param node TSNode backslash_escape
 function M.escape(ctx, node)
+  -- In math, backslashes belong to TeX (\\ is a line break there).
+  local parent = node:parent()
+  if parent and parent:type() == 'latex_block' then
+    return
+  end
   local sr, sc = node:range()
   ctx:conceal(sr, sc, sc + 1)
 end

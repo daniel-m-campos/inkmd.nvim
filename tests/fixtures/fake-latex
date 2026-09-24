@@ -1,0 +1,14 @@
+#!/bin/sh
+# Stand-in for latex: writes math.dvi into -output-directory, or fails like latex when the
+# document contains "error".
+for arg in "$@"; do
+  case "$arg" in
+    -output-directory=*) dir=${arg#-output-directory=} ;;
+    *.tex) tex=$arg ;;
+  esac
+done
+if grep -q error "$tex"; then
+  printf 'This is pdfTeX\n! Undefined control sequence.\nl.6 $\\displaystyle \\error\n' 
+  exit 1
+fi
+printf 'dvi' > "$dir/math.dvi"

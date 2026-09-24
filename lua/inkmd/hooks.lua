@@ -9,10 +9,10 @@ local M = {}
 ---@field on_raw? 'hide'|'keep' whether the drawing stays while the element is shown raw
 
 ---@class inkmd.Item
----@field kind 'code'|'image'
+---@field kind 'code'|'image'|'math'
 ---@field buf integer
 ---@field lang? string code: info string language
----@field text? string code: body; image: alt text
+---@field text? string code: body; image: alt text; math: the TeX source
 ---@field src? string image: destination
 ---@field s integer first row of the element
 ---@field e integer row after the element

@@ -73,8 +73,8 @@ def greet(name: str) -> None:
     print(f"hello {name}")
 ```
 
-Mermaid diagrams render as pictures. Put the cursor in one to edit its source with a
-live preview below:
+Mermaid diagrams render as pictures. Put the cursor in one to edit its source with
+a live preview below:
 
 ```mermaid
 flowchart LR
@@ -101,6 +101,30 @@ flowchart LR
   A --> B -->> C[
 ```
 
+## Math
+
+Inline math becomes Unicode: Euler's identity $e^{i\pi} + 1 = 0$, a bound
+$\alpha^2 \leq \frac{1}{n}$, a sum $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$ and a map
+$f: \mathbb{R}^n \to \mathbb{R}$.
+
+A display formula on its own is typeset with LaTeX and drawn as a picture.
+Put the cursor in it to edit the source with a live preview below:
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}
+$$
+
+$$
+\mathbf{A} = \begin{pmatrix} a_{11} & a_{12} \\ a_{21} & a_{22} \end{pmatrix},
+\qquad \det \mathbf{A} = a_{11}a_{22} - a_{12}a_{21}
+$$
+
+A broken formula shows the TeX error under its source:
+
+$$
+\frac{1}{\undefinedcommand}
+$$
+
 ## Tables
 
 | Element  | Status  |  Count |
@@ -109,8 +133,8 @@ flowchart LR
 | Links    | **yes** |     12 |
 | Images   | M3      |      3 |
 
-A table wider than the window is redrawn to fit, with wrapped cells (resize the window
-or `:vsplit` to watch it reflow):
+A table wider than the window is redrawn to fit, with wrapped cells (resize the
+window or `:vsplit` to watch it reflow):
 
 | Option | Type | Default | Description |
 |:-------|:----:|--------:|-------------|

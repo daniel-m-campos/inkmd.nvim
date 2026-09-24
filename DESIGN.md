@@ -174,3 +174,28 @@ diagrams, the live preview, the error lines and the PNG/SVG images all work.
     returns early when the row fits.
 - **Benchmark:** the document now has a long-link line per section. Render is about
   3.1 ms at p50 and 6 ms at p95 (GC); edit is about 3.5 ms at p50.
+
+## M5: math
+
+- **Parsing:** `markdown_inline` already parses `$…$` and `$$…$$` as `latex_block`. There is
+  no bundled LaTeX parser, so there are no colours.
+- **Display math:** a `$$` block that is its whole paragraph becomes a `kind='math'` claim.
+  The image layer typesets it:
+  - `standalone` class with the `preview` option, the configured preamble, and `\color`
+    set to Normal's foreground, then `latex -halt-on-error` and
+    `dvipng -T tight -bg Transparent`.
+  - `dpi = cell_height / 1.2 * 7.2 * scale`, so 10pt TeX is about as tall as the buffer
+    text (about 200 dpi on a 34 px cell).
+  - The cache key includes the source, preamble, colour and dpi.
+  - It is centred in the window, and shares the Mermaid claim logic (`claim_rendered`):
+    debounced live preview, previous picture kept, errors (latex's `!` line and `l.N` line)
+    under the source.
+- **Inline math,** `$$` inside a sentence, and display math when there is no image backend
+  go through `inkmd.latex.convert`, a small recursive TeX-to-Unicode converter.
+  - Scripts become Unicode super/subscripts only when every character has one;
+    otherwise `^(…)`.
+  - `\frac` becomes `a/b`, with parentheses only for operands that have a top-level
+    operator.
+  - Unknown commands are kept as written.
+- **Process callbacks:** `vim.system` callbacks run in a fast context, so the steps that
+  call Vimscript (mkdir/delete, the next process) are wrapped in `vim.schedule_wrap`.

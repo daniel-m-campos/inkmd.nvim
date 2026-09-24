@@ -76,6 +76,7 @@ function M.setup()
   set('InkmdRule', { link = 'LineNr' })
   set('InkmdTableBorder', { link = 'LineNr' })
   set('InkmdTableHead', { link = '@markup.strong' })
+  set('InkmdMath', { link = '@markup.math' })
   set('InkmdUnchecked', { link = '@markup.list.unchecked' })
   set('InkmdChecked', { link = '@markup.list.checked' })
 end

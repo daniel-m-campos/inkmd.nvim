@@ -46,6 +46,8 @@ function M.check()
     { 'mmdc', 'Mermaid diagrams (npm i -g @mermaid-js/mermaid-cli)' },
     { 'rsvg-convert', 'SVG images (brew install librsvg)' },
     { 'sips', 'image conversion on macOS (built in)' },
+    { 'latex', 'display math (TeX Live or MacTeX)' },
+    { 'dvipng', 'display math (TeX Live or MacTeX)' },
   }
   for _, tool in ipairs(tools) do
     if vim.fn.executable(tool[1]) == 1 then

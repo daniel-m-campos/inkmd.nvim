@@ -7,6 +7,7 @@ local file = require('inkmd.image.convert.file')
 local fit = require('inkmd.image.fit')
 local hooks = require('inkmd.hooks')
 local kitty = require('inkmd.image.kitty')
+local latex = require('inkmd.image.convert.latex')
 local mermaid = require('inkmd.image.convert.mermaid')
 local pipeline = require('inkmd.image.pipeline')
 local placeholder = require('inkmd.image.placeholder')
@@ -40,10 +41,14 @@ local function box(ctx, indent)
 end
 
 ---@param result inkmd.ImageResult
-local function draw(ctx, result, indent)
+---@param center? boolean centre the picture in the window (formulas)
+local function draw(ctx, result, indent, center)
   local max_cols, max_rows = box(ctx, indent)
   local cols, rows = fit.cells(result.width, result.height, cell.size(), max_cols, max_rows)
   local id = kitty.image(result.path, cols, rows)
+  if center then
+    indent = indent + math.floor((max_cols - cols) / 2)
+  end
   return placeholder.virt_lines(id, cols, rows, indent)
 end
 
@@ -78,21 +83,22 @@ local function start(buf, row, key, job, debounce)
   end))
 end
 
+--- Claim for a rendered block (a diagram, a formula): the picture replaces the source, stays
+--- below it while the block is edited, and the last good picture stays up while a changed
+--- source re-renders.
 ---@param item inkmd.Item
 ---@param ctx inkmd.Ctx
----@return inkmd.Claim?
-local function claim_mermaid(item, ctx)
-  local opts = config.options.image.mermaid
-  if not opts.enabled or not vim.tbl_contains(opts.langs, item.lang) then
-    return nil
-  end
+---@param key string
+---@param job fun(done: fun(result: inkmd.ImageResult))
+---@param opts {debounce: integer, pending: string, center?: boolean}
+---@return inkmd.Claim
+local function claim_rendered(item, ctx, key, job, opts)
   local buf, indent = item.buf, item.col or 0
-  local key = mermaid.key(item.text, opts)
   last[buf] = last[buf] or {}
   local prev = last[buf][item.s]
   local result = pipeline.get(key)
   if not result then
-    start(buf, item.s, key, mermaid.job(item.text, key, opts), prev and opts.debounce or nil)
+    start(buf, item.s, key, job, prev and opts.debounce or nil)
     result = { status = 'pending' }
   end
 
@@ -115,7 +121,7 @@ local function claim_mermaid(item, ctx)
       mode = 'below',
       on_raw = 'keep',
       lines = function()
-        return message_lines('⋯ rendering mermaid…', 'Comment', indent, 1)
+        return message_lines(opts.pending, 'Comment', indent, 1)
       end,
     }
   end
@@ -124,9 +130,42 @@ local function claim_mermaid(item, ctx)
     mode = 'replace',
     on_raw = 'keep',
     lines = function()
-      return draw(ctx, shown, indent)
+      return draw(ctx, shown, indent, opts.center)
     end,
   }
+end
+
+---@param item inkmd.Item
+---@param ctx inkmd.Ctx
+---@return inkmd.Claim?
+local function claim_mermaid(item, ctx)
+  local opts = config.options.image.mermaid
+  if not opts.enabled or not vim.tbl_contains(opts.langs, item.lang) then
+    return nil
+  end
+  local key = mermaid.key(item.text, opts)
+  return claim_rendered(item, ctx, key, mermaid.job(item.text, key, opts), {
+    debounce = opts.debounce,
+    pending = '⋯ rendering mermaid…',
+  })
+end
+
+---@param item inkmd.Item
+---@param ctx inkmd.Ctx
+---@return inkmd.Claim?
+local function claim_math(item, ctx)
+  local opts = config.options.math
+  if not opts.display then
+    return nil
+  end
+  local color = latex.color()
+  local dpi = latex.dpi(cell.size().height, opts.scale)
+  local key = latex.key(item.text, opts, color, dpi)
+  return claim_rendered(item, ctx, key, latex.job(item.text, key, opts, color, dpi), {
+    debounce = opts.debounce,
+    pending = '⋯ typesetting…',
+    center = true,
+  })
 end
 
 ---@param item inkmd.Item
@@ -178,6 +217,8 @@ function M.claim(item, ctx)
   end
   if item.kind == 'code' then
     return claim_mermaid(item, ctx)
+  elseif item.kind == 'math' then
+    return claim_math(item, ctx)
   elseif item.kind == 'image' then
     return claim_image(item, ctx)
   end
@@ -202,7 +243,7 @@ function M.setup()
   end
   registered = true
   pipeline.max_jobs = config.options.image.mermaid.max_jobs
-  hooks.register_claimer({ kinds = { 'code', 'image' }, claim = M.claim })
+  hooks.register_claimer({ kinds = { 'code', 'image', 'math' }, claim = M.claim })
 
   local group = vim.api.nvim_create_augroup('inkmd_image', { clear = true })
   vim.api.nvim_create_autocmd('VimLeavePre', {

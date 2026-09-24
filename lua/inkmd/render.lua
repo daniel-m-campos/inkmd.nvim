@@ -13,6 +13,7 @@ local inline = require('inkmd.handlers.inline')
 local misc = require('inkmd.handlers.misc')
 local quote = require('inkmd.handlers.quote')
 local reflow = require('inkmd.reflow')
+local math_handler = require('inkmd.handlers.math')
 local tbl = require('inkmd.handlers.table')
 
 local M = {}
@@ -47,6 +48,7 @@ local inline_handlers = {
   entity = link.entity,
   html_tag = link.html_tag,
   escape = inline.escape,
+  math = math_handler,
 }
 
 --- Rows to render: the union of every window's view plus a margin, the visible rows alone,

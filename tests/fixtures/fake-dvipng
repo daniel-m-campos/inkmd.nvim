@@ -1,0 +1,10 @@
+#!/bin/sh
+# Stand-in for dvipng: copies the red test PNG to the -o path.
+dir=$(dirname "$0")
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) output=$2; shift ;;
+  esac
+  shift
+done
+cp "$dir/img/red.png" "$output"

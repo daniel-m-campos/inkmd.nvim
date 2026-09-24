@@ -112,6 +112,20 @@ M.defaults = {
   frontmatter = {
     label = 'frontmatter',
   },
+  -- LaTeX math: $inline$ is converted to Unicode (α² ≤ 1/n); a $$display$$ block on its own
+  -- is typeset with latex + dvipng and drawn as a picture (with the image backend).
+  math = {
+    inline = true,
+    display = true,
+    latex = 'latex',
+    dvipng = 'dvipng',
+    preamble = '\\usepackage{amsmath,amssymb}',
+    -- Size relative to the buffer text.
+    scale = 1.0,
+    -- Wait this long after the last edit before typesetting a formula being edited.
+    debounce = 500,
+    timeout = 30000,
+  },
   -- Images and diagrams drawn in the buffer with the kitty graphics protocol (kitty,
   -- ghostty, herdr). Elsewhere they fall back to text.
   image = {

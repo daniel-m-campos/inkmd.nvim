@@ -35,6 +35,10 @@ rendered. It is built to replace render-markdown.nvim.
     paragraph.
   - Elsewhere, diagrams stay code blocks and images show their alt text.
 
+- **Math:** inline `$…$` becomes Unicode (`$\alpha^2 \leq \frac{1}{n}$` → α² ≤ 1/n). A
+  `$$…$$` block on its own is typeset with LaTeX (`latex` + `dvipng`) and drawn as a
+  centred picture, with the same live preview and inline errors as Mermaid.
+
 Try it on `examples/demo.md`.
 
 ## Requirements
@@ -48,6 +52,7 @@ Try it on `examples/demo.md`.
   - `mmdc` for Mermaid: `npm i -g @mermaid-js/mermaid-cli`.
   - `sips` (built into macOS) or ImageMagick for jpg/gif/webp/heic, and `rsvg-convert`
     for svg.
+  - `latex` and `dvipng` (TeX Live or MacTeX) for display math.
 
 ## Setup
 

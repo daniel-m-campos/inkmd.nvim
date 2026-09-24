@@ -68,6 +68,7 @@ local inline_query_src = [[
 (numeric_character_reference) @entity
 (html_tag) @html_tag
 (backslash_escape) @escape
+(latex_block) @math
 ]]
 
 local queries = {}
