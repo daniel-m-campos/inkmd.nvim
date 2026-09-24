@@ -79,6 +79,13 @@ function M.setup()
   set('InkmdMath', { link = '@markup.math' })
   set('InkmdUnchecked', { link = '@markup.list.unchecked' })
   set('InkmdChecked', { link = '@markup.list.checked' })
+  set('InkmdTodoCancelled', { link = 'Comment' })
+  set('InkmdTodoCancelledText', { fg = get('Comment').fg, strikethrough = true })
+  set('InkmdTodoDoing', { link = 'DiagnosticWarn' })
+  set('InkmdTodoForwarded', { link = 'DiagnosticHint' })
+  set('InkmdTodoImportant', { link = 'DiagnosticError' })
+  set('InkmdTodoQuestion', { link = 'DiagnosticInfo' })
+  set('InkmdProgress', { link = 'Comment' })
 end
 
 return M

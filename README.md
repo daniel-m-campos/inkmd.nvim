@@ -10,7 +10,12 @@ rendered. It is built to replace render-markdown.nvim.
   as rules.
 - **Code blocks:** a language label and icon, a block background with padding, thin
   borders. This also works inside lists and quotes.
-- **Lists:** bullets by nesting level, checkboxes as icons, ordered markers highlighted.
+- **Lists:** bullets by nesting level, ordered markers highlighted, and checkboxes as icons
+  (after ordered markers too).
+  - Custom states: `[-]` cancelled (struck through), `[/]` in progress, `[>]` forwarded,
+    `[!]` important and `[?]` question. Add your own under `checkbox.custom`.
+  - An item whose sub-list has tasks shows their progress, such as `2/4`. Cancelled and
+    forwarded items don't count.
 - **Links:**
   - Inline, reference and autolinks show an icon chosen by destination and act as real
     terminal hyperlinks (OSC 8).

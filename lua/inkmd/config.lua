@@ -40,6 +40,17 @@ M.defaults = {
   checkbox = {
     unchecked = '󰄱',
     checked = '󰱒',
+    -- More states, written `- [c] text`. `text_hl` styles the item's text. `progress` is
+    -- how the item counts in its parent's progress: 'done', 'todo', or false (not at all).
+    custom = {
+      ['-'] = { icon = '\u{f0158}', hl = 'InkmdTodoCancelled', text_hl = 'InkmdTodoCancelledText', progress = false },
+      ['/'] = { icon = '\u{f0856}', hl = 'InkmdTodoDoing', progress = 'todo' },
+      ['>'] = { icon = '\u{f0736}', hl = 'InkmdTodoForwarded', progress = false },
+      ['!'] = { icon = '\u{f0ce4}', hl = 'InkmdTodoImportant', progress = 'todo' },
+      ['?'] = { icon = '\u{f078b}', hl = 'InkmdTodoQuestion', progress = 'todo' },
+    },
+    -- Show "done/total" after an item whose sub-list has tasks.
+    progress = true,
   },
   -- Icons go before the link text; the first matching destination pattern wins.
   link = {

@@ -37,6 +37,22 @@ This paragraph has a [link with a long hidden address](https://github.com/neovim
 - [ ] An open task
 - [x] A finished task
 
+Custom states, and progress on items with sub-tasks:
+
+- [/] Ship M5 (in progress)
+  - [x] Paragraph reflow
+  - [x] LaTeX math
+  - [/] Checkbox states
+  - [ ] Heading borders
+  - [-] Something we dropped
+- [>] Forwarded to next week
+- [!] Important
+- [?] A question
+- [-] Cancelled
+
+1. [x] Ordered lists take checkboxes too
+2. [ ] Like this one
+
 1. Ordered
 2. Items
 

@@ -252,3 +252,17 @@ inkmd (headless, `redraw!` after each step):
   - a normal mark at the anchor while rendered;
   - a raw-only mark (`keep = 'raw'`, set only while the block is raw) below the source,
     so the preview sits under the code being edited.
+
+## M5: checkbox states and progress
+
+- **Detection:** the checkbox is read from the text after the list marker (`[c]` followed
+  by a space or the end of the line), not from treesitter. The markdown parser only knows
+  `[ ]` and `[x]`; other states parse as shortcut links, and the link handler leaves
+  those alone when no definition matches.
+- **Custom states:** `checkbox.custom[c] = {icon, hl, text_hl?, progress}`. `text_hl`
+  covers the item's paragraph rows (cancelled items are struck through).
+- **Progress:** counts the direct child items of an item's sub-lists by their `progress`
+  kind ('done', 'todo', or false for not counted). It is drawn as `eol` virtual text on
+  the item's last text row, kept while the item is raw. Neovim adds the one-cell gap
+  before it.
+- **Ordered lists:** `1. [ ]` keeps the number and replaces only the box.
