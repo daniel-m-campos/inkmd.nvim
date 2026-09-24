@@ -200,7 +200,8 @@ function M.image(ctx, node, cfg)
 
   if src then
     local span = ctx.span
-    local claim = hooks.claim({ kind = 'image', buf = ctx.buf, src = src, text = alt, s = span[1], e = span[2] }, ctx)
+    local indent = #ctx:line(span[1]):match('^%s*')
+    local claim = hooks.claim({ kind = 'image', buf = ctx.buf, src = src, text = alt, s = span[1], e = span[2], col = indent }, ctx)
     if claim then
       hooks.place(ctx, claim, span[1], span[2])
     end

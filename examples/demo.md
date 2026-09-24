@@ -69,11 +69,32 @@ def greet(name: str) -> None:
     print(f"hello {name}")
 ```
 
+Mermaid diagrams render as pictures. Put the cursor in one to edit its source with a
+live preview below:
+
 ```mermaid
 flowchart LR
   A[Markdown] --> B{inkmd}
   B --> C[Rendered]
   B --> D[Raw under cursor]
+```
+
+```mermaid
+sequenceDiagram
+  participant You
+  participant Neovim
+  participant mmdc
+  You->>Neovim: edit the diagram
+  Neovim->>mmdc: render after 800 ms idle
+  mmdc-->>Neovim: PNG
+  Neovim-->>You: picture below the source
+```
+
+A broken diagram shows the error under its source:
+
+```mermaid
+flowchart LR
+  A --> B -->> C[
 ```
 
 ## Tables
@@ -82,11 +103,19 @@ flowchart LR
 |:---------|:-------:|-------:|
 | Headings | `done`  |      6 |
 | Links    | **yes** |     12 |
-| Images   | M3      |      0 |
+| Images   | M3      |      3 |
 
 ## Images
 
-![A diagram that lands in M3](images/diagram.png)
+A PNG, drawn below its paragraph:
+
+![inkmd banner](images/banner.png)
+
+The same banner as SVG (converted with rsvg-convert):
+
+![inkmd banner as svg](images/banner.svg)
+
+A missing image keeps its alt text: ![not there](images/missing.png)
 
 ---
 

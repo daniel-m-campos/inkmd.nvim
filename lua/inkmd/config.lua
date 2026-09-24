@@ -104,6 +104,36 @@ M.defaults = {
   frontmatter = {
     label = 'frontmatter',
   },
+  -- Images and diagrams drawn in the buffer with the kitty graphics protocol (kitty,
+  -- ghostty, herdr). Elsewhere they fall back to text.
+  image = {
+    enabled = true,
+    -- 'auto' detects the terminal; 'kitty' forces the graphics protocol; 'text' disables it.
+    backend = 'auto',
+    -- Largest drawing, in cells. The height is also capped to the window height - 3.
+    max_width = 100,
+    max_height = 30,
+    -- Local image files referenced with ![alt](path). Remote (http) images are not fetched.
+    files = true,
+    -- Longest image side sent to the terminal, in pixels (larger ones are downscaled).
+    max_pixels = 2048,
+    mermaid = {
+      enabled = true,
+      cmd = 'mmdc',
+      -- Code block languages rendered as Mermaid.
+      langs = { 'mermaid', 'mmd' },
+      -- nil picks 'dark' or 'default' from 'background'.
+      theme = nil,
+      background = 'transparent',
+      scale = 2,
+      -- Extra arguments, e.g. { '-c', 'mermaid-config.json' }.
+      args = {},
+      -- Wait this long after the last edit before re-rendering a diagram being edited.
+      debounce = 800,
+      timeout = 30000,
+      max_jobs = 2,
+    },
+  },
 }
 
 ---@type inkmd.Config

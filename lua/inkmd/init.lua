@@ -20,6 +20,9 @@ local function init()
   default_enabled = config.options.enabled
   ts.strip_bundled_conceal()
   hl.setup()
+  if config.options.image.enabled then
+    require('inkmd.image').setup()
+  end
 
   local group = vim.api.nvim_create_augroup('inkmd', { clear = true })
   vim.api.nvim_create_autocmd('ColorScheme', {

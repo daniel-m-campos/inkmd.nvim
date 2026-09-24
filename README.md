@@ -1,8 +1,8 @@
 # inkmd.nvim
 
-Markdown rendered inside the Neovim buffer you are editing. The block under the cursor
-shows as raw markdown; everything else stays rendered. It is built to replace
-render-markdown.nvim and to add images and Mermaid diagrams (in progress).
+Markdown rendered inside the Neovim buffer you are editing, including images and Mermaid
+diagrams. The block under the cursor shows as raw markdown; everything else stays
+rendered. It is built to replace render-markdown.nvim.
 
 ## What renders
 
@@ -24,12 +24,27 @@ render-markdown.nvim and to add images and Mermaid diagrams (in progress).
   - Horizontal rules, frontmatter drawn as a box, and `==highlight==`.
   - HTML entities (`&copy;` → ©), and hidden inline HTML comments.
 
+- **Images and Mermaid** (kitty, ghostty, herdr):
+  - `mermaid` code blocks are replaced by the rendered diagram. With the cursor in the
+    block, the source shows with a live preview below it that re-renders after a pause.
+    Syntax errors show under the source.
+  - Local images (`png`, `jpg`, `gif`, `webp`, `heic`, `svg`) are drawn below their
+    paragraph.
+  - Elsewhere, diagrams stay code blocks and images show their alt text.
+
+Try it on `examples/demo.md`.
+
 ## Requirements
 
 - Neovim 0.12 or newer, which includes the markdown parsers.
 - A Nerd Font, for the icons.
 - `termguicolors`, for the blended backgrounds (otherwise linked highlight groups are
-  used).
+  used) and for images.
+- **For images:** a terminal with the kitty graphics protocol and Unicode placeholders
+  (kitty, ghostty, herdr); tmux isn't supported.
+  - `mmdc` for Mermaid: `npm i -g @mermaid-js/mermaid-cli`.
+  - `sips` (built into macOS) or ImageMagick for jpg/gif/webp/heic, and `rsvg-convert`
+    for svg.
 
 ## Setup
 
@@ -52,12 +67,15 @@ see `lua/inkmd/config.lua` for every option and its default.
 | `:Inkmd! [toggle\|enable\|disable]` | All buffers, and the default for new ones. |
 | `<Plug>(InkmdToggle)` | Toggle the current buffer. |
 | `:checkhealth inkmd` | Parsers, options, external tools, terminal graphics. |
+| `:InkmdImageRefresh` | Re-render every diagram and send all images again. |
+| `:InkmdImageOpen` | Open the diagram at or above the cursor in the system viewer. |
 
 Turning rendering off restores your window options (`conceallevel` etc.).
 
 ## Claimers: images and diagrams
 
-An extension can take over a code block or an image and draw it in reserved virtual lines:
+Images and Mermaid use this interface, and other extensions can too. An extension can take
+over a code block or an image and draw it in reserved virtual lines:
 
 ```lua
 require('inkmd.hooks').register_claimer({
@@ -83,6 +101,8 @@ Call `require('inkmd').refresh(buf)` when a drawing finishes asynchronously.
   their source instead, so they are not affected.
 - **Virtual lines above the first buffer line** only show once the window is scrolled, so a
   table on line 1 has no top border.
+- **Images are placed per size.** A diagram shown in two windows uses the narrower one's
+  size.
 - **Marks are per buffer.** Several windows showing one buffer share the raw block and use
   the narrowest window's width.
 

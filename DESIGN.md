@@ -82,3 +82,39 @@ confirmed the test images looked good.
 - **The benchmark's edits append to paragraph lines.** Inserting at column 0 turns fences
   into text and re-parses the whole document every iteration, which isn't what typing
   does.
+
+## M3: images and Mermaid
+
+- **Flow:** the claimer (`lua/inkmd/image/init.lua`) turns ` ```mermaid ` blocks and
+  `![](local file)` into claims.
+  - Conversions run through `image/pipeline.lua`: deduplicated by content key, at most 2
+    jobs at a time, and cached on disk as `stdpath('cache')/inkmd/img/<sha256>.png`.
+  - When a job finishes, `inkmd.refresh(buf)` redraws the buffer.
+- **Placement:** placeholders are virtual lines of `U+10EEEE` + row/column diacritics. The
+  foreground (`InkmdImage<id>`) carries the 24-bit image id.
+  - Each (png, cols, rows) gets its own id and one virtual placement
+    (`a=p,U=1,c,r,C=1`).
+  - Transfers are chunked base64 (`t=d`, 4096 bytes, `q=1`), queued, and drained 32
+    chunks per tick through `nvim_ui_send`.
+- **Sizing:** the cell size comes from `TIOCGWINSZ` via FFI (16×34 px in herdr), falling
+  back to 8×16. Pictures keep their natural pixel size, capped at `max_width`,
+  `max_height` and the window height − 3.
+  - Mermaid is rendered once at `-s 2`. Width isn't part of the key, so resizing never
+    re-runs mmdc.
+- **Live preview:** a block keeps its last good picture, keyed by buffer and start row.
+  - While edited source re-renders (after `debounce` = 800 ms), the old picture stays, so
+    the layout doesn't jump.
+  - A first render shows `⋯ rendering mermaid…` under the code block. Errors (the mmdc
+    message without ANSI codes or stack trace) show as up to three `DiagnosticError`
+    lines.
+- **Detection runs on every claim, not once.** During startup no UI may be attached yet
+  and `termguicolors` isn't settled, so a UIEnter autocmd re-renders once the TUI attaches.
+  - herdr leaks the outer terminal's `TERM_PROGRAM=iTerm.app`, so `HERDR_ENV` is checked
+    first.
+- **Cleanup:** our ids are deleted (never `d=A`) on `VimLeavePre` and `:InkmdImageRefresh`.
+  An `ENOENT` reply for one of our ids re-sends that image.
+- **Converting other formats:** `sips` converts without `-Z`, which would also enlarge
+  small images. Results over `max_pixels` are shrunk in a second pass.
+- **Tests:** a fake `mmdc` script (`tests/fixtures/fake-mmdc`) writes a fixture PNG, or an
+  mmdc-style coloured error when the source contains "error". Tests force
+  `backend='kitty'` and capture `kitty.write`.

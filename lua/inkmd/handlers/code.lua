@@ -117,10 +117,13 @@ function M.render(ctx, node, cfg)
   for row = open_row + 1, (close_row or e) - 1 do
     body[#body + 1] = ctx:line(row):sub(indent + 1)
   end
-  local claim = hooks.claim({ kind = 'code', buf = ctx.buf, lang = lang, text = table.concat(body, '\n'), s = s, e = e }, ctx)
+  local claim = hooks.claim({ kind = 'code', buf = ctx.buf, lang = lang, text = table.concat(body, '\n'), s = s, e = e, col = indent }, ctx)
   if claim then
     hooks.place(ctx, claim, s, e)
-    return
+    -- 'below' claims (errors, pending renders) keep the block drawn as code above them.
+    if claim.mode == 'replace' then
+      return
+    end
   end
 
   M.box(ctx, open_row, close_row, e, indent, lang and M.label(lang), cfg)

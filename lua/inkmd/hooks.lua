@@ -16,6 +16,7 @@ local M = {}
 ---@field src? string image: destination
 ---@field s integer first row of the element
 ---@field e integer row after the element
+---@field col? integer indent of the element (where drawings start)
 
 ---@class inkmd.Claimer
 ---@field kinds string[]

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Stand-in for mmdc: copies the red test PNG to the -o path, or fails when the input
+# contains "error", printing an mmdc-style message.
+dir=$(dirname "$0")
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -i) input=$2; shift ;;
+    -o) output=$2; shift ;;
+  esac
+  shift
+done
+if grep -q error "$input"; then
+  printf '\033[31mError: Parse error on line 2:\033[39m\n\033[31m...A --> error\033[39m\n\033[31m----^\033[39m\n\033[31mExpecting NODE_STRING\033[39m\n\033[31mParser.parseError (x.mjs:1:2)\033[39m\n    at foo (bar.js:1:1)\n' >&2
+  exit 1
+fi
+cp "$dir/img/red.png" "$output"

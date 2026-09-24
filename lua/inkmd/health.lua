@@ -54,18 +54,17 @@ function M.check()
       health.info(tool[1] .. ' not found: ' .. tool[2])
     end
   end
-  local term
-  if vim.env.HERDR_ENV then
-    term = 'herdr (kitty graphics via Unicode placeholders)'
-  elseif vim.env.KITTY_WINDOW_ID then
-    term = 'kitty'
-  elseif vim.env.GHOSTTY_RESOURCES_DIR then
-    term = 'ghostty'
-  end
-  if term then
-    health.ok('terminal graphics: ' .. term)
+  local opts = require('inkmd.config').options.image
+  local reason = require('inkmd.image.detect').unavailable(opts.backend)
+  if not opts.enabled then
+    health.info('images disabled (image.enabled = false)')
+  elseif reason then
+    health.warn('images fall back to text: ' .. reason)
   else
-    health.info('terminal graphics: not detected from the environment')
+    local where = vim.env.HERDR_ENV and 'herdr' or vim.env.KITTY_WINDOW_ID and 'kitty' or 'ghostty/kitty-compatible'
+    health.ok('images drawn with kitty graphics (' .. where .. ', Unicode placeholders)')
+    local cell = require('inkmd.image.cell').size()
+    health.info(string.format('cell size: %.1f x %.1f px', cell.width, cell.height))
   end
 end
 
