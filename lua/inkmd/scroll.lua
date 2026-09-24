@@ -4,7 +4,7 @@
 -- tables and pictures are drawn: scrolldown() moves topline onto the concealed line, which
 -- changes which filler rows show without counting them, so the cursor is left below the
 -- window and the next redraw scrolls back. Scrolling on from there repeats it: the window
--- is stuck. These buffer-local mappings scroll, re-validate the view, and when it bounced
+-- is stuck (neovim/neovim#42077). These buffer-local mappings scroll, re-validate the view, and when it bounced
 -- move the cursor off the window edge and try again (what Neovim's own anti-stuck loop
 -- does, but only with 'scrolloff' set and before the view is re-validated).
 local state = require('inkmd.state')

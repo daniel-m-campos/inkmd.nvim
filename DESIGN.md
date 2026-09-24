@@ -216,7 +216,7 @@ diagrams, the live preview, the error lines and the PNG/SVG images all work.
   - It applies to Mermaid, math and image files. Without `rsvg-convert`, pictures are sent
     unpadded.
 
-## Scrolling next to hidden lines (a Neovim 0.12 bug)
+## Scrolling next to hidden lines (a Neovim 0.12 bug, neovim/neovim#42077)
 
 Touchpad scrolling got stuck in `examples/demo.md`. It reproduces in plain Neovim, without
 inkmd (headless, `redraw!` after each step):
