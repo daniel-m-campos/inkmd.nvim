@@ -85,6 +85,10 @@ confirmed the test images looked good.
 
 ## M3: images and Mermaid
 
+The user checked this in a real herdr pane on 2026-09-24 with `examples/demo.md`: the
+diagrams, the live preview, the error lines and the PNG/SVG images all work.
+
+
 - **Flow:** the claimer (`lua/inkmd/image/init.lua`) turns ` ```mermaid ` blocks and
   `![](local file)` into claims.
   - Conversions run through `image/pipeline.lua`: deduplicated by content key, at most 2
