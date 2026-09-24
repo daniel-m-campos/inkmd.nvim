@@ -1,0 +1,21 @@
+󰲡 Heading one
+
+Some text with inline code, emphasis and strong words.
+
+󰲣 Heading two
+
+● first item
+  ○ nested item
+󰄱 open task
+󰱒 done task
+1. ordered
+
+  lua ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  local x = 1
+  print(x)
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+Setext title
+────────────
+
+last line

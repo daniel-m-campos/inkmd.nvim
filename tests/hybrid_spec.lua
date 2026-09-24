@@ -1,0 +1,61 @@
+local h = require('helpers')
+
+local function move(row)
+  vim.api.nvim_win_set_cursor(0, { row, 0 })
+  vim.api.nvim_exec_autocmds('CursorMoved', { buffer = 0 })
+end
+
+describe('hybrid', function()
+  it('shows the code block under the cursor raw but keeps its background', function()
+    local buf = h.open('basic.md', { 21, 0 })
+    move(14)
+    local screen = h.screen()
+    h.eq(screen[13], '```lua')
+    h.eq(screen[16], '```')
+    h.truthy(#h.marks_with_hl(buf, 13, 'InkmdCode') == 1, 'background kept')
+    -- Other blocks stay rendered.
+    h.eq(screen[1], '󰲡 Heading one')
+  end)
+
+  it('restores the block when the cursor leaves', function()
+    h.open('basic.md', { 21, 0 })
+    local before = h.screen()
+    move(14)
+    move(21)
+    h.eq(h.screen(), before)
+  end)
+
+  it('makes only the list item under the cursor raw', function()
+    h.open('basic.md', { 21, 0 })
+    move(7)
+    local screen = h.screen()
+    h.eq(screen[7], '- first item')
+    h.eq(screen[8], '  ○ nested item')
+    h.eq(screen[9], '󰄱 open task')
+  end)
+
+  it('makes the nested item raw without its parent', function()
+    h.open('basic.md', { 21, 0 })
+    move(8)
+    local screen = h.screen()
+    h.eq(screen[7], '● first item')
+    h.eq(screen[8], '  - nested item')
+  end)
+
+  it('shows inline markers raw on the paragraph under the cursor', function()
+    h.open('basic.md', { 21, 0 })
+    move(3)
+    h.eq(h.screen()[3], 'Some text with `inline code`, *emphasis* and **strong** words.')
+  end)
+
+  it('renders everything when hybrid is off', function()
+    require('inkmd.config').options.hybrid = false
+    local ok, err = pcall(function()
+      h.open('basic.md', { 14, 0 })
+      h.eq(h.screen()[14], '  local x = 1')
+      h.truthy(not h.screen()[13]:find('```', 1, true), 'fence hidden')
+    end)
+    require('inkmd.config').options.hybrid = true
+    assert(ok, err)
+  end)
+end)
