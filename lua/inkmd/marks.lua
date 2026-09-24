@@ -18,6 +18,10 @@ M.ns = vim.api.nvim_create_namespace('inkmd')
 ---@field avail integer smallest text width among windows showing the buffer
 ---@field marks inkmd.Mark[]
 ---@field span {[1]: integer, [2]: integer} span assigned to marks added next
+---@field deferred fun(ctx: inkmd.Ctx)[] run after every handler (see `defer`)
+---@field lines table<integer, string> line cache
+---@field by_row table<integer, inkmd.Mark[]> marks by row
+---@field leaves table<integer, {[1]: integer, [2]: integer}> leaf block span by row
 local Ctx = {}
 Ctx.__index = Ctx
 
@@ -25,7 +29,71 @@ Ctx.__index = Ctx
 ---@param avail integer
 ---@return inkmd.Ctx
 function M.new(buf, avail)
-  return setmetatable({ buf = buf, avail = avail, marks = {}, span = { 0, 0 } }, Ctx)
+  return setmetatable(
+    { buf = buf, avail = avail, marks = {}, by_row = {}, leaves = {}, span = { 0, 0 }, deferred = {}, lines = {} },
+    Ctx
+  )
+end
+
+--- Text of buffer row `row` (cached for the duration of a render).
+function Ctx:line(row)
+  local line = self.lines[row]
+  if not line then
+    line = vim.api.nvim_buf_get_lines(self.buf, row, row + 1, false)[1] or ''
+    self.lines[row] = line
+  end
+  return line
+end
+
+--- Rows [start, end) of the leaf block covering `row` (cached for the duration of a render);
+--- just `row` when no leaf block covers it.
+function Ctx:leaf(row)
+  local span = self.leaves[row]
+  if not span then
+    local s, e = require('inkmd.ts').leaf_span(self.buf, row)
+    span = s and { s, e } or { row, row + 1 }
+    self.leaves[row] = span
+  end
+  return span[1], span[2]
+end
+
+--- Run `fn` after all handlers, with the block span current at the time of the call. For
+--- layout that depends on other handlers' marks (table columns measure concealed text).
+---@param fn fun(ctx: inkmd.Ctx)
+function Ctx:defer(fn)
+  local span = self.span
+  self.deferred[#self.deferred + 1] = function()
+    self.span = span
+    fn(self)
+  end
+end
+
+function Ctx:run_deferred()
+  for _, fn in ipairs(self.deferred) do
+    fn()
+  end
+  self.deferred = {}
+end
+
+--- Display width of rows' [col, end_col) as rendered: concealed text removed, inline
+--- virtual text added. Complete only once every handler has run (use it from `defer`).
+function Ctx:visible_width(row, col, end_col)
+  local line = self:line(row)
+  local width = vim.fn.strdisplaywidth(line:sub(col + 1, end_col))
+  for _, mark in ipairs(self.by_row[row] or {}) do
+    local o = mark.opts
+    if o.conceal and o.end_col and not o.end_row then
+      local a, b = math.max(mark.col, col), math.min(o.end_col, end_col)
+      if a < b then
+        width = width - vim.fn.strdisplaywidth(line:sub(a + 1, b))
+      end
+    elseif o.virt_text_pos == 'inline' and mark.col >= col and mark.col < end_col then
+      for _, chunk in ipairs(o.virt_text) do
+        width = width + vim.fn.strdisplaywidth(chunk[1])
+      end
+    end
+  end
+  return width
 end
 
 --- Set the block span for the marks that follow.
@@ -41,7 +109,14 @@ function Ctx:add(row, col, opts, keep)
   opts.strict = false
   opts.invalidate = true
   opts.undo_restore = false
-  self.marks[#self.marks + 1] = { row = row, col = col, opts = opts, span = self.span, keep = keep }
+  local mark = { row = row, col = col, opts = opts, span = self.span, keep = keep }
+  self.marks[#self.marks + 1] = mark
+  local list = self.by_row[row]
+  if not list then
+    list = {}
+    self.by_row[row] = list
+  end
+  list[#list + 1] = mark
 end
 
 --- Hide text in [col, end_col) on one row.
@@ -60,9 +135,25 @@ function Ctx:win_col(row, win_col, chunks, keep)
   self:add(row, 0, { virt_text = chunks, virt_text_win_col = win_col }, keep)
 end
 
---- Highlight [col, end_col) on one row.
-function Ctx:hl(row, col, end_col, group, keep)
-  self:add(row, col, { end_col = end_col, hl_group = group }, keep)
+--- Draw virtual text over the real text at (row, col) without moving it.
+function Ctx:overlay(row, col, chunks, keep)
+  self:add(row, col, { virt_text = chunks, virt_text_pos = 'overlay' }, keep)
+end
+
+--- Highlight [col, end_col) on one row, optionally as a hyperlink (OSC 8).
+function Ctx:hl(row, col, end_col, group, keep, url)
+  self:add(row, col, { end_col = end_col, hl_group = group, url = url }, keep)
+end
+
+--- Virtual lines below `row` (or above it).
+---@param lines [string, string|string[]][][]
+function Ctx:virt_lines(row, lines, above, keep)
+  self:add(row, 0, { virt_lines = lines, virt_lines_above = above or nil }, keep)
+end
+
+--- Hide rows [s, e) entirely. Virtual lines attached to hidden rows are not drawn.
+function Ctx:conceal_lines(s, e)
+  self:add(s, 0, { end_row = e - 1, conceal_lines = '' })
 end
 
 --- Highlight the whole screen line of `row`.

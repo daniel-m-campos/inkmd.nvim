@@ -31,6 +31,13 @@ local function document(n)
     add('- [ ] task')
     add('- [x] done')
     add('')
+    add('> [!NOTE]')
+    add('> A callout with a [link](https://github.com/x) and &amp;.')
+    add('')
+    add('| a | b |')
+    add('|---|:-:|')
+    add('| `x` | [y](https://example.com) |')
+    add('')
     add('```lua')
     add('local x = ' .. i)
     add('print(x)')
@@ -66,7 +73,7 @@ local function record(name, samples, budget)
     failed = failed or status == 'FAIL'
   end
   results[#results + 1] = string.format(
-    '%-15s p50 %7.3f ms   p95 %7.3f ms   %s',
+    '%-16s p50 %7.3f ms   p95 %7.3f ms   %s',
     name,
     p50,
     p95,
@@ -94,9 +101,14 @@ record('attach (cold)', { table.remove(attach, 1) })
 record('attach', attach, 25)
 record('first paint', paint)
 
+-- Render: a full re-render at positions spread over the document. Parsing is done up front
+-- (the highlighter parses what becomes visible anyway) and reported separately.
+local t_parse = vim.uv.hrtime()
+vim.treesitter.get_parser(buf):parse(true)
+record('nvim full parse', { ms(t_parse) })
 local full = {}
-for k = 1, 20 do
-  vim.api.nvim_win_set_cursor(0, { math.floor(#lines * k / 21), 0 })
+for k = 1, 100 do
+  vim.api.nvim_win_set_cursor(0, { math.floor(#lines * (k % 20 + 1) / 21), 0 })
   local t = vim.uv.hrtime()
   inkmd.render_now(buf)
   full[#full + 1] = ms(t)
@@ -108,9 +120,18 @@ record('render', full, 5)
 local edit, parse = {}, {}
 local parser = vim.treesitter.get_parser(buf)
 vim.api.nvim_win_set_cursor(0, { 5000, 0 })
+-- Typing: append to paragraph lines near the cursor (inserting at column 0 would break
+-- fences and restructure the whole document on every edit).
+local text_rows = {}
+for row = 4950, 5050 do
+  if lines[row + 1]:match('^Some text') then
+    text_rows[#text_rows + 1] = row
+  end
+end
 for k = 1, 200 do
-  local row = 4990 + (k % 20)
-  vim.api.nvim_buf_set_text(buf, row, 0, row, 0, { 'x' })
+  local row = text_rows[k % #text_rows + 1]
+  local col = #vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1]
+  vim.api.nvim_buf_set_text(buf, row, col, row, col, { 'x' })
   local t = vim.uv.hrtime()
   parser:parse({ 4950, 5050 })
   parse[#parse + 1] = ms(t)

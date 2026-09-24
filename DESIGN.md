@@ -56,3 +56,29 @@ confirmed the test images looked good.
 - **`leaf_span` starts from `named_descendant_for_range` and walks up** to the nearest
   leaf or `section`. It no longer scans the root's children. Hybrid moves inside the raw
   block return immediately. The p95 is about 0.03 ms.
+
+## M2 findings
+
+- **Overlay beats conceal plus inline for full-width drawings.** Hidden text still counts
+  toward wrap width (#14409), so hiding `***` and inserting an 80-column rule wraps onto an
+  empty row. Rules, code fences, frontmatter fences and the table delimiter row are drawn
+  with `virt_text_pos='overlay'`, padded to cover the source.
+- **Inline marks at the same column** don't keep insertion order. The table's closing bar
+  shares one mark with the last cell's padding.
+- **`virt_lines_above` on buffer line 1** is only visible once the window is scrolled
+  (topfill). This affects a table's top border on line 1.
+- **`conceal_lines` blocks are reachable.** `j`/`k` land on hidden rows, and hybrid then
+  reveals them, so a claim with `mode='replace'` stays editable by normal motion.
+- **Finding the injected trees for a range.** Calling `tree:root()` on each of about 4k
+  `markdown_inline` trees allocated about 800 KB per render.
+  `LanguageTree:included_regions()` is ordered by document position and indexed like
+  `trees()`, so `ts.inline_trees` binary-searches it instead.
+- **Parse only the visible rows after an edit.** Neovim's own injection parse costs about
+  20–50 ms per keystroke on a 10k-line document. Any range the highlighter didn't just
+  parse would pay that again, so the render parses only the rows the highlighter covered.
+  Margin rows reuse their edited trees, and the next scroll parses them.
+- **Render p95 sits near 5 ms, mostly Lua GC pauses.** A render allocates about 380 KB, and
+  a full collection walks the parser's heap. The p50 is about 2.2 ms.
+- **The benchmark's edits append to paragraph lines.** Inserting at column 0 turns fences
+  into text and re-parses the whole document every iteration, which isn't what typing
+  does.

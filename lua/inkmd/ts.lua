@@ -41,12 +41,33 @@ local block_query_src = [[
 (list_marker_star) @bullet
 (list_marker_dot) @ordered
 (list_marker_parenthesis) @ordered
+(block_quote) @quote
+(thematic_break) @rule
+(minus_metadata) @frontmatter
+(plus_metadata) @frontmatter
+(html_block) @html_block
+(pipe_table) @table
+[
+  (paragraph) (atx_heading) (setext_heading) (fenced_code_block) (indented_code_block)
+  (pipe_table) (thematic_break) (html_block) (link_reference_definition)
+] @leaf
 ]]
 
 local inline_query_src = [[
 (code_span) @code_span
 (code_span_delimiter) @delimiter
 (emphasis_delimiter) @delimiter
+(inline_link) @link
+(full_reference_link) @link
+(collapsed_reference_link) @link
+(shortcut_link) @shortcut
+(uri_autolink) @autolink
+(email_autolink) @autolink
+(image) @image
+(entity_reference) @entity
+(numeric_character_reference) @entity
+(html_tag) @html_tag
+(backslash_escape) @escape
 ]]
 
 local queries = {}
@@ -65,6 +86,41 @@ end
 function M.parser(buf)
   local ok, parser = pcall(vim.treesitter.get_parser, buf, 'markdown')
   return ok and parser or nil
+end
+
+--- Injected markdown_inline trees overlapping rows [s, e]. Regions are in document order,
+--- so a binary search avoids touching (and allocating nodes for) thousands of trees.
+---@param parser vim.treesitter.LanguageTree
+---@return TSTree[]
+function M.inline_trees(parser, s, e)
+  local child = parser:children().markdown_inline
+  if not child then
+    return {}
+  end
+  local regions, trees = child:included_regions(), child:trees()
+  local n = #regions
+  -- Range6 = { start_row, start_col, start_byte, end_row, end_col, end_byte }
+  local lo, hi = 1, n + 1
+  while lo < hi do
+    local mid = math.floor((lo + hi) / 2)
+    local region = regions[mid]
+    if region[#region][4] < s then
+      lo = mid + 1
+    else
+      hi = mid
+    end
+  end
+  local out = {}
+  for i = lo, n do
+    local region = regions[i]
+    if region[1][1] > e then
+      break
+    end
+    if trees[i] then
+      out[#out + 1] = trees[i]
+    end
+  end
+  return out
 end
 
 --- Block node types that are rendered or shown raw as a unit.
@@ -119,7 +175,12 @@ function M.leaf_span(buf, row)
   -- marker (a dead end) and its paragraph (the leaf).
   local function search(node)
     for child in node:iter_children() do
-      if child:named() then
+      local cs, _, ce = child:range()
+      if cs > row then
+        break
+      end
+      -- range() bounds the real span, so row_span is only needed for a possible match.
+      if child:named() and ce >= row then
         local s, e = M.row_span(child)
         if s <= row and row < e then
           if M.leaf_blocks[child:type()] then

@@ -1,0 +1,22 @@
+
+▋ 󰋽 Note
+▋ Useful information.
+
+▋ 󰀪 Custom title
+▋ Be careful.
+
+────────────────────────────────────────────────────────────────────────────────
+
+┌─────────────┬────────┬───────┐
+│ Name        │  Code  │ Right │
+├─────────────┼────────┼───────┤
+│ a           │ 󰖟 link │     1 │
+│ longer name │   b    │    22 │
+└─────────────┴────────┴───────┘
+
+<!-- block comment -->
+
+[r]: https://example.com
+¹: The footnote.
+
+last line

@@ -1,3 +1,4 @@
+local hooks = require('inkmd.hooks')
 local ts = require('inkmd.ts')
 
 -- Nerd Font (devicons) codepoints for common languages; anything else gets the generic one.
@@ -12,13 +13,82 @@ local icons = {
 }
 local generic_icon = '\u{f022e}'
 
+local M = {}
+
+--- Draw a code-style box: background on rows between the fences, the fences replaced by
+--- half-block borders, a label on the top one.
+---@param ctx inkmd.Ctx
+---@param open_row integer row of the opening fence
+---@param close_row? integer row of the closing fence (nil if unclosed)
+---@param e integer row after the block
+---@param indent integer column of the fences
+---@param label? string
+---@param cfg inkmd.Config
+function M.box(ctx, open_row, close_row, e, indent, label, cfg)
+  local opts = cfg.code
+  local body_end = close_row or e
+
+  -- Width of the widest body line, measured from the fence's column.
+  local body_width = 0
+  for row = open_row + 1, body_end - 1 do
+    body_width = math.max(body_width, vim.fn.strdisplaywidth(ctx:line(row):sub(indent + 1)))
+  end
+  local avail = ctx.avail - indent
+  local width = math.max(opts.min_width, body_width + opts.left_pad + opts.right_pad)
+  width = math.max(math.min(width, avail), 1)
+  local pad = string.rep(' ', opts.left_pad)
+
+  -- Body rows: background, left margin and right padding survive hybrid mode (keep).
+  for row = open_row + 1, body_end - 1 do
+    local line = ctx:line(row)
+    local col = math.min(indent, #line)
+    ctx:inline(row, col, { { pad, 'InkmdCode' } }, true)
+    if #line > col then
+      ctx:hl(row, col, #line, 'InkmdCode', true)
+    end
+    local used = opts.left_pad + vim.fn.strdisplaywidth(line:sub(col + 1))
+    if used < width then
+      ctx:win_col(row, indent + used, { { string.rep(' ', width - used), 'InkmdCode' } }, true)
+    end
+  end
+
+  -- Fences: drawn over (overlay) rather than concealed, since concealed text still counts
+  -- toward wrapping. The drawing is at least as wide as the fence so none of it shows.
+  local function fence(row, chunks, used, fill)
+    local need = vim.fn.strdisplaywidth(ctx:line(row):sub(indent + 1))
+    local rest = math.max(width - used, need - used, 0)
+    if opts.border == 'thin' then
+      chunks[#chunks + 1] = { string.rep(fill, math.max(width - used, 0)), 'InkmdCodeBorder' }
+      rest = rest - math.max(width - used, 0)
+    end
+    if rest > 0 then
+      chunks[#chunks + 1] = { string.rep(' ', rest) }
+    end
+    ctx:overlay(row, indent, chunks)
+  end
+
+  local chunks, used = {}, 0
+  if opts.label and label then
+    chunks[1] = { label, 'InkmdCodeInfo' }
+    used = vim.fn.strdisplaywidth(label)
+  end
+  fence(open_row, chunks, used, '▄')
+  if close_row then
+    fence(close_row, {}, 0, '▀')
+  end
+end
+
+---@param lang string
+function M.label(lang)
+  return string.format(' %s %s ', icons[lang] or generic_icon, lang)
+end
+
 ---@param ctx inkmd.Ctx
 ---@param node TSNode fenced_code_block
 ---@param cfg inkmd.Config
-return function(ctx, node, cfg)
+function M.render(ctx, node, cfg)
   local s, e = ts.row_span(node)
   ctx:block(s, e)
-  local opts = cfg.code
 
   local open, close, lang
   for child in node:iter_children() do
@@ -41,56 +111,19 @@ return function(ctx, node, cfg)
   end
 
   local open_row, indent = open:range()
-  local close_row = close and close:range() or e
-  local lines = vim.api.nvim_buf_get_lines(ctx.buf, open_row, e, false)
+  local close_row = close and (close:range()) or nil
 
-  -- Width of the widest body line, measured from the fence's column.
-  local body_width = 0
-  for i = 2, close and #lines - 1 or #lines do
-    body_width = math.max(body_width, vim.fn.strdisplaywidth(lines[i]:sub(indent + 1)))
+  local body = {}
+  for row = open_row + 1, (close_row or e) - 1 do
+    body[#body + 1] = ctx:line(row):sub(indent + 1)
   end
-  local avail = ctx.avail - indent
-  local width = math.max(opts.min_width, body_width + opts.left_pad + opts.right_pad)
-  width = math.max(math.min(width, avail), 1)
-  local pad = string.rep(' ', opts.left_pad)
-
-  -- Body rows: background, left margin and right padding survive hybrid mode (keep).
-  for row = open_row + 1, close_row - 1 do
-    local line = lines[row - open_row + 1] or ''
-    local col = math.min(indent, #line)
-    ctx:inline(row, col, { { pad, 'InkmdCode' } }, true)
-    if #line > col then
-      ctx:hl(row, col, #line, 'InkmdCode', true)
-    end
-    local used = opts.left_pad + vim.fn.strdisplaywidth(line:sub(col + 1))
-    if used < width then
-      ctx:win_col(row, indent + used, { { string.rep(' ', width - used), 'InkmdCode' } }, true)
-    end
+  local claim = hooks.claim({ kind = 'code', buf = ctx.buf, lang = lang, text = table.concat(body, '\n'), s = s, e = e }, ctx)
+  if claim then
+    hooks.place(ctx, claim, s, e)
+    return
   end
 
-  -- Opening fence: hide ``` and the info string, show a label and/or the top border.
-  local open_line = lines[1]
-  ctx:conceal(open_row, indent, #open_line)
-  local chunks = {}
-  local used = 0
-  if opts.label and lang then
-    local label = string.format(' %s %s ', icons[lang] or generic_icon, lang)
-    chunks[#chunks + 1] = { label, 'InkmdCodeInfo' }
-    used = vim.fn.strdisplaywidth(label)
-  end
-  if opts.border == 'thin' and width > used then
-    chunks[#chunks + 1] = { string.rep('▄', width - used), 'InkmdCodeBorder' }
-  end
-  if #chunks > 0 then
-    ctx:inline(open_row, indent, chunks)
-  end
-
-  -- Closing fence: hide it, draw the bottom border.
-  if close then
-    local close_line = lines[close_row - open_row + 1]
-    ctx:conceal(close_row, indent, #close_line)
-    if opts.border == 'thin' then
-      ctx:inline(close_row, indent, { { string.rep('▀', width), 'InkmdCodeBorder' } })
-    end
-  end
+  M.box(ctx, open_row, close_row, e, indent, lang and M.label(lang), cfg)
 end
+
+return M

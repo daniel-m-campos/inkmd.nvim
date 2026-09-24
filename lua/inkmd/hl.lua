@@ -51,7 +51,26 @@ function M.setup()
     set('InkmdCodeInfo', { link = '@label' })
   end
 
+  local warn = get('DiagnosticWarn').fg
+  if bg and warn then
+    vim.api.nvim_set_hl(0, 'InkmdHighlight', { bg = blend(warn, bg, 0.3) })
+  else
+    set('InkmdHighlight', { link = 'Search' })
+  end
+
   set('InkmdBullet', { link = '@markup.list' })
+  set('InkmdLink', { link = '@markup.link.label' })
+  set('InkmdLinkIcon', { link = '@markup.link' })
+  set('InkmdFootnote', { link = '@markup.link' })
+  set('InkmdQuote', { link = '@markup.quote' })
+  set('InkmdNote', { link = 'DiagnosticInfo' })
+  set('InkmdTip', { link = 'DiagnosticOk' })
+  set('InkmdImportant', { link = 'DiagnosticHint' })
+  set('InkmdWarning', { link = 'DiagnosticWarn' })
+  set('InkmdCaution', { link = 'DiagnosticError' })
+  set('InkmdRule', { link = 'LineNr' })
+  set('InkmdTableBorder', { link = 'LineNr' })
+  set('InkmdTableHead', { link = '@markup.strong' })
   set('InkmdUnchecked', { link = '@markup.list.unchecked' })
   set('InkmdChecked', { link = '@markup.list.checked' })
 end

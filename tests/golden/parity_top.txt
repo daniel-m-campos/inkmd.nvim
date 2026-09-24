@@ -1,0 +1,21 @@
+  frontmatter ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  title: Parity
+  tags: [a, b]
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+Links: 󰖟 docs and 󰊤 repo, a
+󰈙 local file, 󰖟 https://example.com, 󰇮 me@example.com, 󰖟 ref and 󰖟 r.
+
+Wiki: 󰈙 Some Page and 󰈙 alias; footnote¹; marked & © →
+struck 󰋩 diagram  end.
+
+▋ A quote
+▋ ▋ nested quote
+
+▋ 󰋽 Note
+▋ Useful information.
+
+▋ 󰀪 Custom title
+▋ Be careful.
+
+────────────────────────────────────────────────────────────────────────────────
