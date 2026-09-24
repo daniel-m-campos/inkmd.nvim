@@ -24,6 +24,10 @@ A hidden comment follows <!-- you can't see me --> right here.
 - Wikilinks: [[Project Notes]] and [[project-notes|an alias]]
 - Footnote reference[^1] and another[^note]
 
+This paragraph has a [link with a long hidden address](https://github.com/neovim/neovim/issues/14409) in the middle of a line that is longer than most windows are wide, so it shows how inkmd rewraps it by what you actually see.
+
+- A list item with [another long link](https://example.com/a/rather/long/path/to/some/page/that/you/never/see) keeps its hanging indent when it wraps.
+
 ## Lists
 
 - First level

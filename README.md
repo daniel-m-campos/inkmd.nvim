@@ -99,9 +99,14 @@ Call `require('inkmd').refresh(buf)` when a drawing finishes asynchronously.
 
 ## Known limitations
 
-- **Hidden text still counts for wrapping** (Neovim #14409). A line with a long hidden URL
-  wraps early, as if the URL were still there. Rules, code fences and table rules are drawn over
-  their source instead, so they are not affected.
+- **Hidden text still counts for wrapping** (Neovim #14409): Neovim wraps a line as if a
+  hidden link URL were still there.
+  - inkmd works around this for paragraphs, including those in lists and quotes: rows that
+    hide text and would wrap are redrawn word-wrapped by their rendered width
+    (`reflow = true`). Rules, code fences and table rules are drawn over their source.
+  - Headings with long links still wrap early.
+  - Reflowed rows are virtual text: search highlights and visual selection show once the
+    cursor is in the paragraph (it is then raw).
 - **Tables taller than the window, once fitted,** are cut short with a "⋯ N more lines"
   footer: virtual lines only scroll as far as the window is tall. The source shows in full
   with the cursor in the table.
