@@ -128,6 +128,51 @@ describe('image units', function()
     h.truthy(mermaid.key('A --> B', opts) ~= mermaid.key('A --> C', opts), 'source changes the key')
   end)
 
+  it('pads pictures to the exact shape of their cell box', function()
+    with_images(function()
+      local pad = require('inkmd.image.pad')
+      local png = require('inkmd.image.png')
+      local cell = { width = 8, height = 16 }
+      local exact = pipeline.from_png(h.root .. '/tests/fixtures/img/red.png')
+      h.eq(pad.needed(exact, 8, 2, cell), false)
+      -- 64x40 px is 8 columns by 2.5 rows: it gets 3 rows (48 px) and must not be stretched.
+      local tall = pipeline.from_png(h.root .. '/tests/fixtures/img/green-64x40.png')
+      local cols, rows = require('inkmd.image.fit').cells(tall.width, tall.height, cell, 80, 30)
+      h.eq({ cols, rows }, { 8, 3 })
+      h.eq(pad.needed(tall, cols, rows, cell), true)
+      local key = pad.key(tall, cols, rows, cell)
+      local result
+      pipeline.request(key, pad.job(tall, key, cols, rows, cell), function(r)
+        result = r
+      end)
+      h.truthy(vim.wait(5000, function()
+        return result ~= nil
+      end, 20), 'padded')
+      h.eq(result.status, 'ok', result.message)
+      h.eq({ png.size(result.path) }, { 64, 48 })
+    end)
+  end)
+
+  it('sends the padded picture once it is ready', function()
+    with_images(function(sent)
+      vim.cmd.cd(h.root)
+      local buf = h.scratch({ '![g](tests/fixtures/img/green-64x40.png)', '', 'end' }, { 3, 0 })
+      h.truthy(vim.wait(5000, function()
+        -- Transfers of a 64x48 PNG: its IHDR (base64 of the header) is in the first chunk.
+        for _, data in ipairs(sent) do
+          local payload = data:match(';(.*)\27\\$')
+          if payload and data:find('a=t', 1, true) then
+            local bytes = vim.base64.decode(payload:sub(1, 32))
+            if #bytes >= 24 and bytes:byte(24) == 48 and bytes:byte(20) == 64 then
+              return true
+            end
+          end
+        end
+      end, 20), 'padded 64x48 picture sent')
+      h.truthy(buf > 0, 'buffer')
+    end)
+  end)
+
   it('falls back to text when no UI is attached', function()
     h.eq(require('inkmd.image.detect').unavailable('auto'), 'no UI attached')
     h.eq(require('inkmd.image.detect').unavailable('kitty'), nil)

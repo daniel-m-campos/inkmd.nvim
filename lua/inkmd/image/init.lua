@@ -9,6 +9,7 @@ local hooks = require('inkmd.hooks')
 local kitty = require('inkmd.image.kitty')
 local latex = require('inkmd.image.convert.latex')
 local mermaid = require('inkmd.image.convert.mermaid')
+local pad = require('inkmd.image.pad')
 local pipeline = require('inkmd.image.pipeline')
 local placeholder = require('inkmd.image.placeholder')
 
@@ -44,8 +45,21 @@ end
 ---@param center? boolean centre the picture in the window (formulas)
 local function draw(ctx, result, indent, center)
   local max_cols, max_rows = box(ctx, indent)
-  local cols, rows = fit.cells(result.width, result.height, cell.size(), max_cols, max_rows)
-  local id = kitty.image(result.path, cols, rows)
+  local size = cell.size()
+  local cols, rows = fit.cells(result.width, result.height, size, max_cols, max_rows)
+  -- Terminals stretch pictures to fill the box: show a copy padded to the box's exact shape
+  -- once it's ready (the unpadded picture meanwhile).
+  local path = result.path
+  if pad.available() and pad.needed(result, cols, rows, size) then
+    local key = pad.key(result, cols, rows, size)
+    local padded = pipeline.request(key, pad.job(result, key, cols, rows, size), function()
+      refresh(ctx.buf)
+    end)
+    if padded.status == 'ok' then
+      path = padded.path
+    end
+  end
+  local id = kitty.image(path, cols, rows)
   if center then
     indent = indent + math.floor((max_cols - cols) / 2)
   end

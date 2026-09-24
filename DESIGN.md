@@ -199,3 +199,18 @@ diagrams, the live preview, the error lines and the PNG/SVG images all work.
   - Unknown commands are kept as written.
 - **Process callbacks:** `vim.system` callbacks run in a fast context, so the steps that
   call Vimscript (mkdir/delete, the next process) are wrapped in `vim.schedule_wrap`.
+
+## Pictures keep their shape
+
+- **The problem:** the user saw display math "squished". Terminals (herdr at least) stretch
+  a picture to fill its placement box.
+  - The box is whole cells, sized with `ceil`, so short pictures were far off: a formula
+    116×31 px got 8×2 cells = 128×68 px, stretched 50% taller (so it looked 50% narrower).
+- **The fix (`image/pad.lua`):** when the box's shape differs from the picture's by more
+  than 1%, the picture is centred in a transparent PNG of the box's exact pixel size. The
+  padded copy is made by wrapping the PNG in an SVG `<image>` and rendering it with
+  `rsvg-convert`.
+  - It is cached by (png, box px) and produced in the background, showing the unpadded
+    picture until it's ready.
+  - It applies to Mermaid, math and image files. Without `rsvg-convert`, pictures are sent
+    unpadded.
