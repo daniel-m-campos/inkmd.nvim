@@ -3,6 +3,7 @@
 -- that Neovim would wrap and that hide text are hidden and redrawn in virtual lines,
 -- word-wrapped by their rendered width. List bullets, hanging indents and quote bars are
 -- kept; with the cursor in the paragraph it shows raw as usual.
+local hooks = require('inkmd.hooks')
 local text = require('inkmd.text')
 
 local M = {}
@@ -95,7 +96,6 @@ function M.pass(ctx, s, e)
   if not all_wrap(ctx.buf) then
     return
   end
-  local count = vim.api.nvim_buf_line_count(ctx.buf)
   local row = s
   while row < e do
     local leaf = ctx.leaves[row]
@@ -106,14 +106,12 @@ function M.pass(ctx, s, e)
       end
       ctx:block(leaf[1], leaf[2])
       local lines = reflow(ctx, leaf, a, b)
-      -- Lines on a hidden row don't draw: hang them above the next visible row (before any
-      -- other lines there, e.g. a table's top border), else below the previous one.
-      if b < count and not ctx.hidden_rows[b] then
+      -- Lines on a hidden row don't draw: hang them on a visible neighbour (below the
+      -- previous row when possible, see hooks.anchor), first among lines above a row.
+      local anchor, above = hooks.anchor(ctx, a, b)
+      if anchor then
         ctx:conceal_lines(a, b)
-        ctx:virt_lines(b, lines, true, false, true)
-      elseif a > 0 and not ctx.hidden_rows[a - 1] then
-        ctx:conceal_lines(a, b)
-        ctx:virt_lines(a - 1, lines, false)
+        ctx:virt_lines(anchor, lines, above, false, above)
       end
       row = b
     else

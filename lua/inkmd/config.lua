@@ -11,6 +11,9 @@ M.defaults = {
   -- Redraw paragraph rows that hide text (link URLs, markup) and would wrap, word-wrapped
   -- by their rendered width: Neovim wraps concealed text as if it were visible (#14409).
   reflow = true,
+  -- Map the mouse wheel, CTRL-Y and CTRL-E (normal mode, unless already mapped) to scroll
+  -- without getting stuck next to hidden lines, a Neovim bug (see lua/inkmd/scroll.lua).
+  fix_scroll = true,
   win_options = {
     conceallevel = 3,
     concealcursor = '',

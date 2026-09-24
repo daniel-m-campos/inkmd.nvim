@@ -62,6 +62,19 @@ function M.claim(item, ctx)
   end
 end
 
+--- Where to hang lines that replace hidden rows [s, e): below the previous visible row.
+--- Not above the next row: Neovim 0.12 loops when scrolling up past hidden rows followed by
+--- lines above the next row (see DESIGN.md). Returns row and `above`, or nil.
+---@param ctx inkmd.Ctx
+function M.anchor(ctx, s, e)
+  if s > 0 and not ctx.hidden_rows[s - 1] then
+    return s - 1, false
+  end
+  if e < vim.api.nvim_buf_line_count(ctx.buf) and not ctx.hidden_rows[e] then
+    return e, true
+  end
+end
+
 --- Reserve space for `claim` on the element at rows [s, e) and draw its lines there.
 ---@param ctx inkmd.Ctx
 ---@param claim inkmd.Claim
@@ -72,15 +85,17 @@ function M.place(ctx, claim, s, e)
     ctx:virt_lines(e - 1, lines, false, keep)
     return
   end
-  -- Lines on a hidden row don't draw, so hang them on a neighbouring visible row.
-  if e < vim.api.nvim_buf_line_count(ctx.buf) then
-    ctx:conceal_lines(s, e)
-    ctx:virt_lines(e, lines, true, keep)
-  elseif s > 0 then
-    ctx:conceal_lines(s, e)
-    ctx:virt_lines(s - 1, lines, false, keep)
-  else
+  local row, above = M.anchor(ctx, s, e)
+  if not row then
+    -- Nowhere visible to hang the lines (the block is the whole buffer): draw below it.
     ctx:virt_lines(e - 1, lines, false, keep)
+    return
+  end
+  ctx:conceal_lines(s, e)
+  ctx:virt_lines(row, lines, above)
+  -- While the element is raw its source shows; the drawing (a live preview) goes below it.
+  if keep then
+    ctx:virt_lines(e - 1, lines, false, 'raw')
   end
 end
 

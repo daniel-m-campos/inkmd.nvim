@@ -133,6 +133,9 @@ function M.attach(buf)
       M.detach(buf)
     end
   end)
+  if config.options.fix_scroll then
+    require('inkmd.scroll').map(buf)
+  end
   if st.enabled then
     apply_winopts(buf)
     render.render(buf)
@@ -146,6 +149,7 @@ function M.detach(buf)
   end
   pcall(vim.api.nvim_del_augroup_by_id, st.augroup)
   if vim.api.nvim_buf_is_valid(buf) then
+    require('inkmd.scroll').unmap(buf)
     render.clear(buf)
     winopts.restore_buf(buf)
   end

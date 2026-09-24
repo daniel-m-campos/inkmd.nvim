@@ -112,6 +112,10 @@ Call `require('inkmd').refresh(buf)` when a drawing finishes asynchronously.
   - Headings with long links still wrap early.
   - Reflowed rows are virtual text: search highlights and visual selection show once the
     cursor is in the paragraph (it is then raw).
+- **Scrolling next to hidden lines** can get stuck in Neovim 0.12. inkmd maps the mouse
+  wheel, `<C-y>` and `<C-e>` in rendered buffers (normal mode, unless you've mapped them)
+  to scroll around it (`fix_scroll = true`). Other scroll commands, and scrolling in
+  visual or insert mode, can still stick.
 - **Tables taller than the window, once fitted,** are cut short with a "⋯ N more lines"
   footer: virtual lines only scroll as far as the window is tall. The source shows in full
   with the cursor in the table.

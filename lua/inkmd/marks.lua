@@ -10,7 +10,7 @@ M.ns = vim.api.nvim_create_namespace('inkmd')
 ---@field col integer
 ---@field opts vim.api.keyset.set_extmark
 ---@field span {[1]: integer, [2]: integer} rows [start, end)
----@field keep? boolean shown even when its block is raw
+---@field keep? boolean|'raw' true: shown even when its block is raw; 'raw': shown only then
 ---@field id? integer extmark id once applied
 
 ---@class inkmd.Ctx
@@ -177,8 +177,12 @@ function M.apply(buf, marks)
   vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
   for _, mark in ipairs(marks) do
     mark.opts.id = nil
-    local ok, id = pcall(vim.api.nvim_buf_set_extmark, buf, M.ns, mark.row, mark.col, mark.opts)
-    mark.id = ok and id or nil
+    mark.id = nil
+    -- Raw-only marks appear when their block goes raw (see `hide`).
+    if mark.keep ~= 'raw' then
+      local ok, id = pcall(vim.api.nvim_buf_set_extmark, buf, M.ns, mark.row, mark.col, mark.opts)
+      mark.id = ok and id or nil
+    end
   end
 end
 
@@ -189,21 +193,34 @@ local function intersects(mark, s, e)
   return mark.span[1] < e and s < mark.span[2]
 end
 
---- Remove the non-`keep` marks of rows [s, e).
+--- Show rows [s, e) raw: remove their marks (except `keep` ones) and add their raw-only ones.
 function M.hide(buf, marks, s, e)
   for _, mark in ipairs(marks) do
-    if mark.id and not mark.keep and intersects(mark, s, e) then
-      vim.api.nvim_buf_del_extmark(buf, M.ns, mark.id)
+    if intersects(mark, s, e) then
+      if mark.keep == 'raw' then
+        mark.opts.id = nil
+        local ok, id = pcall(vim.api.nvim_buf_set_extmark, buf, M.ns, mark.row, mark.col, mark.opts)
+        mark.id = ok and id or nil
+      elseif mark.id and not mark.keep then
+        vim.api.nvim_buf_del_extmark(buf, M.ns, mark.id)
+      end
     end
   end
 end
 
---- Put back the marks of rows [s, e) removed by `hide`.
+--- Undo `hide` for rows [s, e).
 function M.show(buf, marks, s, e)
   for _, mark in ipairs(marks) do
-    if mark.id and not mark.keep and intersects(mark, s, e) then
-      mark.opts.id = mark.id
-      pcall(vim.api.nvim_buf_set_extmark, buf, M.ns, mark.row, mark.col, mark.opts)
+    if intersects(mark, s, e) then
+      if mark.keep == 'raw' then
+        if mark.id then
+          vim.api.nvim_buf_del_extmark(buf, M.ns, mark.id)
+          mark.id = nil
+        end
+      elseif mark.id and not mark.keep then
+        mark.opts.id = mark.id
+        pcall(vim.api.nvim_buf_set_extmark, buf, M.ns, mark.row, mark.col, mark.opts)
+      end
     end
   end
 end

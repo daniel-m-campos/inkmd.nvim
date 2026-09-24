@@ -158,8 +158,9 @@ diagrams, the live preview, the error lines and the PNG/SVG images all work.
   inline virtual text > avail) are hidden with `conceal_lines`. They are redrawn in
   `virt_lines` word-wrapped by their rendered width (`text.atoms` + `text.wrap`).
   - Only when every window showing the buffer wraps.
-  - Runs of consecutive rows hang above the next visible row, created `first` so they come
-    before other lines there: virtual lines above one row draw in creation order.
+  - Runs of consecutive rows hang below the previous visible row (`hooks.anchor`), or
+    above the next one at the top of the buffer (created `first` so they come before
+    other lines there: virtual lines above one row draw in creation order).
 - **Prefixes:** the prefix before the paragraph text (bullet, checkbox, quote markers) is
   kept on the first line. Wrapped lines get a hanging prefix: quote-bar overlays are kept
   and everything else becomes spaces.
@@ -214,3 +215,40 @@ diagrams, the live preview, the error lines and the PNG/SVG images all work.
     picture until it's ready.
   - It applies to Mermaid, math and image files. Without `rsvg-convert`, pictures are sent
     unpadded.
+
+## Scrolling next to hidden lines (a Neovim 0.12 bug)
+
+Touchpad scrolling got stuck in `examples/demo.md`. It reproduces in plain Neovim, without
+inkmd (headless, `redraw!` after each step):
+
+- **Layout:** a row of virtual lines next to a line hidden with `conceal_lines`, which is
+  how reflowed paragraphs, block tables and pictures are drawn. Conceal alone, or virtual
+  lines alone, never stick.
+- **Where it breaks:** `scrolldown()` (CTRL-Y, and the wheel) moves topline up one line,
+  then "adjusts for concealed lines above w_topline" by moving topline onto the concealed
+  line. That changes which filler rows are drawn, but they aren't counted, so the cursor
+  correction is off. The next `update_topline` puts the cursor back in the window by
+  scrolling back: the view doesn't move, or lands on the other side of where it started.
+  Scrolling again repeats it.
+- **No placement avoids it.** A sweep over window heights 6 to 40 and both directions:
+  - lines below the previous row, or above the next row: both stick;
+  - lines on the hidden row itself (below or above): never drawn.
+- **'scrolloff' doesn't help.** `scroll_redraw()`'s own "at least move the cursor" loop
+  only runs with 'scrolloff' > 0, and it checks before the view is re-validated.
+- **The fix (`lua/inkmd/scroll.lua`, `fix_scroll = true`):**
+  - Buffer-local normal-mode mappings for `<ScrollWheelUp>`/`<ScrollWheelDown>`
+    (`'mousescroll'` lines, in the window under the mouse) and `<C-y>`/`<C-e>`. The
+    user's own mappings are left alone.
+  - Each scroll runs the builtin command, then re-validates the view with
+    `nvim__redraw({win, valid = false})`. That is cheaper than `redraw!` and doesn't
+    flush, but it is where the bounce happens.
+  - If the view didn't move the right way, it restores the view, moves the cursor `i`
+    lines away from the window edge (`i = 1..height`) and tries again.
+  - Cost: about 0.8 ms a step (the builtin is 0.03 ms).
+  - `tests/scroll_spec.lua` fails without the fix.
+- **Anchoring:** still below the previous visible row. In a minimal repro, above-anchoring
+  also made the view oscillate. With a `keep` claim (Mermaid live preview) the lines are
+  drawn twice:
+  - a normal mark at the anchor while rendered;
+  - a raw-only mark (`keep = 'raw'`, set only while the block is raw) below the source,
+    so the preview sits under the code being edited.
