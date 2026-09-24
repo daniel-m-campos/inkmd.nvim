@@ -21,7 +21,24 @@ Re-run `nvim --headless --clean -l spike/core_spike.lua` after a Neovim upgrade.
 Headless smoke test: placeholder rows render as one cell per placeholder, and the
 concealed-fence layout shows 5 image rows directly above a visible closing fence.
 
-Results from a real herdr pane: _pending_.
+Results from a real herdr pane (2026-09-24, herdr 0.9.1, nvim 0.12.5). The user
+confirmed the test images looked good.
+
+- **Probe:**
+  - XTVERSION returns `libghostty` (herdr's own emulator).
+  - The kitty `a=q` query returns `OK` before the DA1 reply, so the probe order works.
+  - Replies arrive through `TermResponse`, as planned.
+- **Environment:** `HERDR_ENV=1` and `HERDR_PANE_ID` are set.
+  - `TERM_PROGRAM=iTerm.app` leaks in from the outer terminal, and `GHOSTTY_*` and
+    `KITTY_WINDOW_ID` are empty.
+  - So detection must key on `HERDR_ENV` and the probe, never on `TERM_PROGRAM`.
+- **Cell size:** the FFI `TIOCGWINSZ` works on fds 0–2 (`/dev/tty` open fails).
+  - It reports 1440×1734 px for 90×51 cells, i.e. 16×34 px cells (a height/width ratio of
+    2.125).
+- **Transfer:** direct (`t=d`, 2 chunks), file (`t=f`) and temp-file (`t=t`) sends were
+  all accepted, and placement with `U=1` Unicode placeholders works.
+  - Which methods actually painted wasn't recorded per method, so the default stays
+    `t=d`, the method that avoids herdr #732.
 
 ## Performance (M1, `make bench`, 10k lines)
 
