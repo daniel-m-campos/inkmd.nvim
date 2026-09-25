@@ -130,10 +130,15 @@ M.defaults = {
     label = 'frontmatter',
   },
   -- LaTeX math: $inline$ is converted to Unicode (α² ≤ 1/n); a $$display$$ block on its own
-  -- is typeset with latex + dvipng and drawn as a picture (with the image backend).
+  -- is typeset (RaTeX or latex + dvipng) and drawn as a picture (with the image backend).
   math = {
     inline = true,
     display = true,
+    -- 'ratex' (RaTeX: KaTeX syntax, about 5 ms a formula), 'latex' (latex + dvipng: any
+    -- LaTeX, about 250 ms), or 'auto': RaTeX when installed, latex for what it can't typeset.
+    backend = 'auto',
+    -- RaTeX's PNG renderer (the `render` binary of its releases), installed as `ratex`.
+    ratex = 'ratex',
     latex = 'latex',
     dvipng = 'dvipng',
     preamble = '\\usepackage{amsmath,amssymb}',
@@ -158,7 +163,14 @@ M.defaults = {
     max_pixels = 2048,
     mermaid = {
       enabled = true,
+      -- 'mmdc' (mermaid-cli: Node and headless Chromium, about 0.5 s a diagram), 'merman'
+      -- (merman-cli, a Rust port: output close to mmdc's, about 30 ms), 'mmdr'
+      -- (mermaid-rs-renderer: about 20 ms, but its layouts differ and it draws some invalid
+      -- diagrams without an error), or 'auto': the first installed of merman, mmdc, mmdr.
+      backend = 'auto',
       cmd = 'mmdc',
+      merman = 'merman-cli',
+      mmdr = 'mmdr',
       -- Code block languages rendered as Mermaid.
       langs = { 'mermaid', 'mmd' },
       -- nil picks 'dark' or 'default' from 'background'.

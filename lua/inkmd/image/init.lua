@@ -9,6 +9,7 @@ local hooks = require('inkmd.hooks')
 local kitty = require('inkmd.image.kitty')
 local latex = require('inkmd.image.convert.latex')
 local mermaid = require('inkmd.image.convert.mermaid')
+local ratex = require('inkmd.image.convert.ratex')
 local pad = require('inkmd.image.pad')
 local pipeline = require('inkmd.image.pipeline')
 local placeholder = require('inkmd.image.placeholder')
@@ -174,8 +175,15 @@ local function claim_math(item, ctx)
   end
   local color = latex.color()
   local dpi = latex.dpi(cell.size().height, opts.scale)
-  local key = latex.key(item.text, opts, color, dpi)
-  return claim_rendered(item, ctx, key, latex.job(item.text, key, opts, color, dpi), {
+  local backend = ratex.backend(opts)
+  local key = latex.key(item.text, opts, color, dpi, backend)
+  local job = latex.job(item.text, key, opts, color, dpi)
+  if backend == 'ratex' then
+    -- In 'auto' mode latex typesets what RaTeX can't (LaTeX beyond KaTeX's syntax).
+    local fallback = opts.backend == 'auto' and vim.fn.executable(opts.latex) == 1 and job or nil
+    job = ratex.job(item.text, key, opts, color, dpi, fallback)
+  end
+  return claim_rendered(item, ctx, key, job, {
     debounce = opts.debounce,
     pending = '⋯ typesetting…',
     center = true,

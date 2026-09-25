@@ -41,7 +41,7 @@ rendered. It is built to replace render-markdown.nvim.
   - Elsewhere, diagrams stay code blocks and images show their alt text.
 
 - **Math:** inline `$…$` becomes Unicode (`$\alpha^2 \leq \frac{1}{n}$` → α² ≤ 1/n). A
-  `$$…$$` block on its own is typeset with LaTeX (`latex` + `dvipng`) and drawn as a
+  `$$…$$` block on its own is typeset (RaTeX, or `latex` + `dvipng`) and drawn as a
   centred picture, with the same live preview and inline errors as Mermaid.
 
 Try it on `examples/demo.md`.
@@ -54,10 +54,23 @@ Try it on `examples/demo.md`.
   used) and for images.
 - **For images:** a terminal with the kitty graphics protocol and Unicode placeholders
   (kitty, ghostty, herdr); tmux isn't supported.
-  - `mmdc` for Mermaid: `npm i -g @mermaid-js/mermaid-cli`.
+  - **Mermaid**, one of these (`image.mermaid.backend`; `'auto'` takes the first installed,
+    in this order):
+    - `merman-cli` ([merman](https://github.com/Latias94/merman), prebuilt releases): a
+      Rust port of Mermaid, output close to mmdc's, about 15 times faster.
+    - `mmdc`: `npm i -g @mermaid-js/mermaid-cli` (Node and headless Chromium, about 0.5 s
+      a diagram).
+    - `mmdr` ([mermaid-rs-renderer](https://github.com/1jehuang/mermaid-rs-renderer)):
+      the fastest, but its layouts differ from Mermaid's and it draws some invalid
+      diagrams instead of reporting the error. Uses `rsvg-convert` for sharp output.
+  - **Display math**, one of these (`math.backend`; `'auto'` prefers RaTeX and falls back
+    to LaTeX for what it can't typeset):
+    - `ratex` ([RaTeX](https://github.com/erweixin/RaTeX), a Rust port of KaTeX, about
+      50 times faster): install the `render` binary from its releases as `ratex` on your
+      `PATH`, or set `math.ratex` to its path. KaTeX syntax only.
+    - `latex` and `dvipng` (TeX Live or MacTeX): any LaTeX.
   - `sips` (built into macOS) or ImageMagick for jpg/gif/webp/heic, and `rsvg-convert`
     for svg.
-  - `latex` and `dvipng` (TeX Live or MacTeX) for display math.
 
 ## Setup
 

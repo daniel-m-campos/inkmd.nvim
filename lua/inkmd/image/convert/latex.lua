@@ -20,8 +20,8 @@ function M.dpi(cell_height, scale)
   return math.max(math.floor(cell_height / 1.2 * 7.2 * scale + 0.5), 50)
 end
 
-function M.key(source, opts, color, dpi)
-  return vim.fn.sha256(table.concat({ 'math', source, opts.preamble, color, tostring(dpi) }, '\0'))
+function M.key(source, opts, color, dpi, backend)
+  return vim.fn.sha256(table.concat({ 'math', backend or 'latex', source, opts.preamble, color, tostring(dpi) }, '\0'))
 end
 
 --- The message from latex's output: the "! ..." line and the "l.N ..." line after it.

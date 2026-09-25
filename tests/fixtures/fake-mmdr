@@ -1,0 +1,20 @@
+#!/bin/sh
+# Stand-in for mmdr: writes the red test SVG (-e svg) or PNG to the -o path, or fails when
+# the input contains "error". Logs its arguments, and the -c config, to $INKMD_FAKE_LOG.
+dir=$(dirname "$0")
+[ -n "$INKMD_FAKE_LOG" ] && echo "$@" >> "$INKMD_FAKE_LOG"
+format=svg
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -i) input=$2; shift ;;
+    -o) output=$2; shift ;;
+    -e) format=$2; shift ;;
+    -c) [ -n "$INKMD_FAKE_LOG" ] && cat "$2" >> "$INKMD_FAKE_LOG"; shift ;;
+  esac
+  shift
+done
+if grep -q error "$input"; then
+  echo 'Error: parse error at line 2' >&2
+  exit 1
+fi
+cp "$dir/img/red.$format" "$output"

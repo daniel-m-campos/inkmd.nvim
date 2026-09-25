@@ -13,6 +13,10 @@ local function with_images(fn)
   local sent = {}
   opts.backend = 'kitty'
   opts.mermaid.cmd = h.root .. '/tests/fixtures/fake-mmdc'
+  -- mmdc unless a test picks another: 'auto' would use one installed on this machine.
+  opts.mermaid.backend = 'mmdc'
+  opts.mermaid.merman = h.root .. '/tests/fixtures/fake-mmdc'
+  opts.mermaid.mmdr = h.root .. '/tests/fixtures/fake-mmdr'
   opts.mermaid.debounce = 50
   pipeline.dir = h.root .. '/tests/.tmp/cache'
   vim.fn.delete(pipeline.dir, 'rf')
@@ -245,5 +249,73 @@ describe('image rendering', function()
         return has_image(buf)
       end, 20), 'svg drawn: ' .. vim.inspect(virt_lines(buf)))
     end)
+  end)
+end)
+
+describe('mermaid backends', function()
+  local log = h.root .. '/tests/.tmp/fake.log'
+
+  local function render(backend, fn)
+    with_images(function()
+      config.options.image.mermaid.backend = backend
+      vim.fn.mkdir(vim.fs.dirname(log), 'p')
+      vim.fn.delete(log)
+      vim.env.INKMD_FAKE_LOG = log
+      local buf = h.scratch({ 'before', '```mermaid', 'A --> B', '```', 'after' }, { 1, 0 })
+      local ok, err = pcall(fn, buf)
+      vim.env.INKMD_FAKE_LOG = nil
+      assert(ok, err)
+    end)
+  end
+
+  it('renders with mmdr through SVG on a transparent background', function()
+    render('mmdr', function(buf)
+      h.truthy(vim.wait(5000, function()
+        return has_image(buf)
+      end, 20), 'picture drawn: ' .. vim.inspect(virt_lines(buf)))
+      local logged = table.concat(vim.fn.readfile(log), '\n')
+      h.truthy(logged:find('-t dark', 1, true) or logged:find('-t default', 1, true), logged)
+      h.truthy(logged:find('"background":"transparent"', 1, true), logged)
+      if vim.fn.executable('rsvg-convert') == 1 then
+        h.truthy(logged:find('-e svg', 1, true), logged)
+      end
+    end)
+  end)
+
+  it('shows mmdr errors under the source', function()
+    with_images(function()
+      config.options.image.mermaid.backend = 'mmdr'
+      local buf = h.scratch({ 'before', '```mermaid', 'A --> error', '```', 'after' }, { 1, 0 })
+      h.truthy(vim.wait(5000, function()
+        return vim.tbl_contains(virt_lines(buf), 'Error: parse error at line 2')
+      end, 20), 'error shown: ' .. vim.inspect(virt_lines(buf)))
+    end)
+  end)
+
+  it("renders with merman using mmdc's arguments", function()
+    render('merman', function(buf)
+      h.truthy(vim.wait(5000, function()
+        return has_image(buf)
+      end, 20), 'picture drawn: ' .. vim.inspect(virt_lines(buf)))
+    end)
+  end)
+
+  it('picks the first installed of merman, mmdc and mmdr in auto mode', function()
+    local mermaid = require('inkmd.image.convert.mermaid')
+    local fake = h.root .. '/tests/fixtures/fake-mmdc'
+    local none = 'inkmd-no-such-tool'
+    h.eq(mermaid.backend({ backend = 'auto', merman = fake, cmd = fake, mmdr = fake }), 'merman')
+    h.eq(mermaid.backend({ backend = 'auto', merman = none, cmd = fake, mmdr = fake }), 'mmdc')
+    h.eq(mermaid.backend({ backend = 'auto', merman = none, cmd = none, mmdr = fake }), 'mmdr')
+    h.eq(mermaid.backend({ backend = 'mmdr', merman = fake, cmd = fake, mmdr = fake }), 'mmdr')
+  end)
+
+  it('keys the cache by backend', function()
+    local mermaid = require('inkmd.image.convert.mermaid')
+    local opts = vim.deepcopy(config.options.image.mermaid)
+    opts.backend = 'mmdc'
+    local a = mermaid.key('A --> B', opts)
+    opts.backend = 'mmdr'
+    h.truthy(a ~= mermaid.key('A --> B', opts), 'different keys')
   end)
 end)

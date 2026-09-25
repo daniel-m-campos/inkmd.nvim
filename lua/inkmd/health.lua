@@ -44,10 +44,13 @@ function M.check()
   health.info(string.format('registered claimers: %d', claimers))
   local tools = {
     { 'mmdc', 'Mermaid diagrams (npm i -g @mermaid-js/mermaid-cli)' },
+    { 'merman-cli', 'Mermaid diagrams, faster (github.com/Latias94/merman)' },
+    { 'mmdr', 'Mermaid diagrams, fastest (github.com/1jehuang/mermaid-rs-renderer)' },
     { 'rsvg-convert', 'SVG images (brew install librsvg)' },
     { 'sips', 'image conversion on macOS (built in)' },
     { 'latex', 'display math (TeX Live or MacTeX)' },
     { 'dvipng', 'display math (TeX Live or MacTeX)' },
+    { 'ratex', 'display math, faster (github.com/erweixin/RaTeX, its `render` binary)' },
   }
   for _, tool in ipairs(tools) do
     if vim.fn.executable(tool[1]) == 1 then
@@ -56,7 +59,10 @@ function M.check()
       health.info(tool[1] .. ' not found: ' .. tool[2])
     end
   end
-  local opts = require('inkmd.config').options.image
+  local options = require('inkmd.config').options
+  health.info('mermaid backend: ' .. require('inkmd.image.convert.mermaid').backend(options.image.mermaid))
+  health.info('math backend: ' .. require('inkmd.image.convert.ratex').backend(options.math))
+  local opts = options.image
   local reason = require('inkmd.image.detect').unavailable(opts.backend)
   if not opts.enabled then
     health.info('images disabled (image.enabled = false)')

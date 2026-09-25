@@ -1,0 +1,18 @@
+#!/bin/sh
+# Stand-in for RaTeX's `render`: writes the red test PNG as <output-dir>/0001.png, or fails
+# like RaTeX when the formula contains "error" or "latexonly". Logs its arguments to
+# $INKMD_FAKE_LOG when set.
+dir=$(dirname "$0")
+[ -n "$INKMD_FAKE_LOG" ] && echo "$@" >> "$INKMD_FAKE_LOG"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --input) input=$2; shift ;;
+    --output-dir) out=$2; shift ;;
+  esac
+  shift
+done
+if grep -q -e error -e latexonly "$input"; then
+  printf 'ERR    1 %s — Parse error: ParseError at position 1: Undefined control sequence: \\error\n\nProcessed 1 formula(s), wrote 0 PNG(s), failed 1.\n' "$(cat "$input")"
+  exit 1
+fi
+cp "$dir/img/red.png" "$out/0001.png"

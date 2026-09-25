@@ -12,6 +12,9 @@ local function with_images(fn)
   config.options.image.backend = 'kitty'
   config.options.math.latex = h.root .. '/tests/fixtures/fake-latex'
   config.options.math.dvipng = h.root .. '/tests/fixtures/fake-dvipng'
+  -- latex unless a test picks RaTeX: 'auto' would use a ratex installed on this machine.
+  config.options.math.backend = 'latex'
+  config.options.math.ratex = h.root .. '/tests/fixtures/fake-ratex'
   pipeline.dir = h.root .. '/tests/.tmp/cache'
   vim.fn.delete(pipeline.dir, 'rf')
   pipeline.reset()
@@ -121,6 +124,60 @@ describe('math rendering', function()
       local buf = h.scratch({ 'see $$x^2$$ here', '', 'end' }, { 3, 0 })
       h.eq(h.screen()[1], 'see x² here')
       h.eq(#virt_lines(buf), 0)
+    end)
+  end)
+
+  describe('with RaTeX', function()
+    local log = h.root .. '/tests/.tmp/fake.log'
+
+    local function run(backend, formula, fn)
+      with_images(function()
+        config.options.math.backend = backend
+        vim.fn.mkdir(vim.fs.dirname(log), 'p')
+        vim.fn.delete(log)
+        vim.env.INKMD_FAKE_LOG = log
+        local ok, err = pcall(fn, h.scratch({ 'x', '', '$$', formula, '$$', '', 'end' }, { 7, 0 }))
+        vim.env.INKMD_FAKE_LOG = nil
+        assert(ok, err)
+      end)
+    end
+
+    it('typesets with ratex at the size and colour latex would use', function()
+      run('ratex', '\\int_0^1 x^2 dx', function(buf)
+        h.truthy(vim.wait(5000, function()
+          return has_picture(buf)
+        end, 20), 'picture drawn: ' .. vim.inspect(virt_lines(buf)))
+        local args = table.concat(vim.fn.readfile(log), ' ')
+        local latex = require('inkmd.image.convert.latex')
+        local dpi = latex.dpi(require('inkmd.image.cell').size().height, 1)
+        h.truthy(args:find('--font-size ' .. require('inkmd.image.convert.ratex').font_size(dpi), 1, true), args)
+        h.truthy(args:find('--color #' .. latex.color(), 1, true), args)
+        h.truthy(args:find('--background-color transparent', 1, true), args)
+      end)
+    end)
+
+    it('shows ratex errors under the source', function()
+      run('ratex', '\\error{x}', function(buf)
+        h.truthy(vim.wait(5000, function()
+          return vim.tbl_contains(virt_lines(buf), 'Parse error: ParseError at position 1: Undefined control sequence: \\error')
+        end, 20), 'error shown: ' .. vim.inspect(virt_lines(buf)))
+      end)
+    end)
+
+    it('falls back to latex for what ratex rejects in auto mode', function()
+      run('auto', '\\latexonly{x}', function(buf)
+        h.truthy(vim.wait(5000, function()
+          return has_picture(buf)
+        end, 20), 'picture drawn by latex: ' .. vim.inspect(virt_lines(buf)))
+        h.truthy(#vim.fn.readfile(log) == 1, 'ratex tried first')
+      end)
+    end)
+
+    it('picks ratex in auto mode only when it is installed', function()
+      local ratex = require('inkmd.image.convert.ratex')
+      h.eq(ratex.backend({ backend = 'auto', ratex = h.root .. '/tests/fixtures/fake-ratex' }), 'ratex')
+      h.eq(ratex.backend({ backend = 'auto', ratex = 'inkmd-no-such-ratex' }), 'latex')
+      h.eq(ratex.backend({ backend = 'latex', ratex = h.root .. '/tests/fixtures/fake-ratex' }), 'latex')
     end)
   end)
 end)

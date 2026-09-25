@@ -301,3 +301,35 @@ inkmd (headless, `redraw!` after each step):
   left. `WinNew` rebuilds, so a window opened without focus joins the "rest" scope.
 - **Fallback:** without `nvim__ns_set` it falls back to the old buffer-wide behaviour.
 - **Cost:** hybrid move p95 stays about 0.05 ms.
+
+## Backends for Mermaid and math (merman, mmdr, RaTeX)
+
+Measured on 2026-09-25 (Apple Silicon, warm runs, median of 5, one process per item as
+inkmd runs them) on the demo's diagrams plus sequence, class, state, ER, gantt and pie
+diagrams, and six formulas:
+
+| Job | Tool | Per item | Output |
+|---|---|---|---|
+| Mermaid | mmdc 11 (Chromium) | ~460 ms | reference |
+| Mermaid | merman-cli 0.7.0 | ~32 ms | same layout and size as mmdc; some small labels thinner |
+| Mermaid | mmdr 0.3.1 | ~22 ms | own layouts, 1× PNG with a grey background, overlapping labels in state diagrams; **exits 0 on some invalid input** (draws `A --> B -->> C[` as a chart) |
+| Math | latex + dvipng | ~255 ms | reference |
+| Math | RaTeX 0.1.14 (`render`) | ~4.5 ms | close to LaTeX, slightly lighter strokes; KaTeX syntax only |
+
+- **Whole demo:** all of its pictures are ready 1,204 ms after opening with mmdc and latex,
+  114 ms with merman and RaTeX, and 317 ms with mmdr and RaTeX.
+- **Mermaid (`image.mermaid.backend`):**
+  - `'auto'` takes the first installed of merman, mmdc, mmdr.
+  - merman-cli takes mmdc's arguments.
+  - mmdr renders SVG with `-c {"themeVariables":{"background":"transparent"}}` (its own
+    PNGs are grey and 1×), and `rsvg-convert -z scale` rasterizes it. Without
+    rsvg-convert, mmdr writes the PNG itself.
+- **Math (`math.backend`):**
+  - `'auto'` uses RaTeX when installed and hands what it rejects (packages beyond
+    KaTeX) to latex.
+  - Size: `--font-size` = 10 pt at the dpi latex would use (`10 * dpi / 72.27` px), so
+    both backends draw the same size.
+  - Errors are the `— Parse error: ...` part of RaTeX's `ERR` line.
+- **Caching:** the cache key includes the backend.
+- **Tests:** they pin mmdc and latex, and use `fake-mmdr` and `fake-ratex` for the new
+  paths.
